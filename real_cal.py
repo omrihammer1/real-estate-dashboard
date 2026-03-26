@@ -97,9 +97,8 @@ with tax_col3:
 # חיבור פשוט של כל המרכיבים
 total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
 
-# הצגת הסיכום והפירוט
+# הצגת הסיכום
 st.info(f"💡 **סה״כ הוצאות נלוות ומיסים:** ₪{total_additional_expenses:,.0f}")
-f})")
 
 st.markdown("---")
 
