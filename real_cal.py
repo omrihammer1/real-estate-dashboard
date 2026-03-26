@@ -79,20 +79,20 @@ with tax_col1:
     st.metric("מס רכישה מחושב", f"₪{calculated_tax:,.0f}")
 
 with tax_col2:
-    st.markdown("**אנשי מקצוע (אחוזים + מע\"מ)**")
-    brokerage_pct = st.number_input("אחוז תיווך קנייה (%)", min_value=0.0, value=0.0, step=0.1)
-    lawyer_pct = st.number_input("שכר טרחה עו״ד (%)", min_value=0.0, value=0.0, step=0.1)
+    st.markdown("**אנשי מקצוע (+ מע\"מ)**")
     vat_rate = st.number_input("שיעור מע\"מ (%)", min_value=0.0, value=17.0, step=1.0)
+    vat_multiplier = 1.0 + (vat_rate / 100.0)
+    
+    brokerage_pct = st.number_input("אחוז תיווך קנייה (%)", min_value=0.0, value=0.0, step=0.1)
+    lawyer_fee_raw = st.number_input("שכר טרחה עו״ד (₪)", min_value=0.0, value=0.0, step=1000.0)
+    
+    brokerage_cost = purchase_price * (brokerage_pct / 100.0) * vat_multiplier
+    lawyer_cost = lawyer_fee_raw * vat_multiplier
 
 with tax_col3:
     st.markdown("**הוצאות קבועות (₪)**")
     mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0.0, value=0.0, step=500.0)
     other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0.0, value=15000.0, step=1000.0)
-
-# חישוב עלויות אנשי מקצוע בחיבור פשוט וישיר
-vat_multiplier = 1.0 + (vat_rate / 100.0)
-brokerage_cost = purchase_price * (brokerage_pct / 100.0) * vat_multiplier
-lawyer_cost = purchase_price * (lawyer_pct / 100.0) * vat_multiplier
 
 # חיבור פשוט של כל המרכיבים
 total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
