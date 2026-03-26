@@ -71,6 +71,10 @@ st.markdown("---")
 st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
+# הגדרת אחוז המע"מ הכללי שישמש את תיבות הסימון
+vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=17.0, step=1.0)
+vat_multiplier = 1.0 + (vat_rate / 100.0)
+
 with tax_col1:
     st.markdown("**מס רכישה**")
     buyer_status = st.radio("סטטוס רוכש:", ["דירה יחידה", "דירה חלופית / נוספת (8%-10%)"])
@@ -79,23 +83,44 @@ with tax_col1:
     st.metric("מס רכישה מחושב", f"₪{calculated_tax:,.0f}")
 
 with tax_col2:
-    st.markdown("**אנשי מקצוע (+ מע\"מ)**")
-    vat_rate = st.number_input("שיעור מע\"מ (%)", min_value=0.0, value=17.0, step=1.0)
-    vat_multiplier = 1.0 + (vat_rate / 100.0)
+    st.markdown("**אנשי מקצוע**")
     
     brokerage_pct = st.number_input("אחוז תיווך קנייה (%)", min_value=0.0, value=0.0, step=0.1)
-    lawyer_fee_raw = st.number_input("שכר טרחה עו״ד (₪)", min_value=0.0, value=0.0, step=1000.0)
+    add_vat_brokerage = st.checkbox("➕ הוסף מע״מ לתיווך", value=True)
     
-    brokerage_cost = purchase_price * (brokerage_pct / 100.0) * vat_multiplier
-    lawyer_cost = lawyer_fee_raw * vat_multiplier
-
+    st.markdown("<br>", unsafe_allow_html=True)
+    lawyer_fee_raw = st.number_input("שכר טרחה עו״ד (₪)", min_value=0.0, value=0.0, step=1000.0)
+    add_vat_lawyer = st.checkbox("➕ הוסף מע״מ לעו״ד", value=True)
+    
 with tax_col3:
-    st.markdown("**הוצאות קבועות (₪)**")
+    st.markdown("**יועצים והוצאות נוספות (₪)**")
+    
     mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0.0, value=0.0, step=500.0)
+    add_vat_advisor = st.checkbox("➕ הוסף מע״מ ליועץ", value=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
     other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0.0, value=15000.0, step=1000.0)
+    add_vat_other = st.checkbox("➕ הוסף מע״מ להוצאות נוספות", value=False)
 
-# חיבור פשוט של כל המרכיבים
-total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
+# חישוב עלויות פרטניות כולל/ללא מע"מ לפי בחירתך
+brokerage_cost = purchase_price * (brokerage_pct / 100.0)
+if add_vat_brokerage:
+    brokerage_cost *= vat_multiplier
+
+lawyer_cost = lawyer_fee_raw
+if add_vat_lawyer:
+    lawyer_cost *= vat_multiplier
+    
+advisor_cost = mortgage_advisor
+if add_vat_advisor:
+    advisor_cost *= vat_multiplier
+    
+other_cost = other_expenses
+if add_vat_other:
+    other_cost *= vat_multiplier
+
+# חיבור פשוט של כל המרכיבים יחד למספר סופי
+total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + advisor_cost + other_cost
 
 # הצגת הסיכום
 st.info(f"💡 **סה״כ הוצאות נלוות ומיסים:** ₪{total_additional_expenses:,.0f}")
