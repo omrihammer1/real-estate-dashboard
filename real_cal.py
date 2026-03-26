@@ -2,43 +2,6 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-# --- הגדרת העמוד ---
-st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
-
-# --- הזרקת CSS ליישור לימין (RTL) ---
-st.markdown("""
-<style>
-    /* הגדרת כיוון כללי של האפליקציה מימין לשמאל */
-    .stApp, .block-container {
-        direction: rtl;
-        text-align: right;
-        font-family: 'Heebo', 'Alef', 'Segoe UI', sans-serif;
-    }
-    
-    /* יישור טקסט ספציפי לימין עבור כותרות ופסקאות */
-    p, h1, h2, h3, h4, h5, h6, span, label, div {
-        text-align: right !important;
-    }
-    
-    /* תיקון שדות קלט למספרים כדי שהטקסט בתוכם יהיה מימין */
-    input {
-        text-align: right !important;
-        direction: ltr !important; /* משאיר את המספרים עצמם בכיוון נכון */
-    }
-    
-    /* סידור קוביות המדדים (Metrics) כך שיהיו מיושרות לימין */
-    div[data-testid="metric-container"] {
-        text-align: right;
-    }
-    
-    /* תיקון גרפי לכפתורי בחירה (Radio / Checkbox) */
-    .stCheckbox > div, .stRadio > div {
-        direction: rtl;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-
 # --- פונקציות חישוב ---
 
 def calculate_monthly_payment(principal, annual_rate, total_months):
@@ -80,6 +43,42 @@ def calculate_purchase_tax(price, is_single_home):
         else:
             tax = b1 * 0.08 + (price - b1) * 0.10
     return tax
+
+# --- הגדרת העמוד ---
+st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
+
+# --- הזרקת CSS ליישור לימין (RTL) ---
+st.markdown("""
+<style>
+    /* הגדרת כיוון כללי של האפליקציה מימין לשמאל */
+    .stApp, .block-container {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Heebo', 'Alef', 'Segoe UI', sans-serif;
+    }
+    
+    /* יישור טקסט ספציפי לימין עבור כותרות ופסקאות */
+    p, h1, h2, h3, h4, h5, h6, span, label, div {
+        text-align: right !important;
+    }
+    
+    /* תיקון שדות קלט למספרים כדי שהטקסט בתוכם יהיה מימין */
+    input {
+        text-align: right !important;
+        direction: ltr !important; 
+    }
+    
+    /* סידור קוביות המדדים (Metrics) כך שיהיו מיושרות לימין */
+    div[data-testid="metric-container"] {
+        text-align: right;
+    }
+    
+    /* תיקון גרפי לכפתורי בחירה (Radio / Checkbox) */
+    .stCheckbox > div, .stRadio > div {
+        direction: rtl;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
 st.markdown("---")
@@ -148,7 +147,8 @@ st.markdown("---")
 
 # --- מסלולי משכנתא ---
 st.subheader("🏦 מסלולי משכנתא (שפיצר)")
-num_tracks = st.slider("מספר מסלולים", min_value=1, max_value=4, value=2)
+# החלפנו את הסליידר הבעייתי בתיבת בחירה אלגנטית
+num_tracks = st.selectbox("מספר מסלולים פעילים", options=, index=1)
 
 tracks_data = []
 cols = st.columns(num_tracks)
@@ -190,7 +190,6 @@ total_investment = purchase_price + total_additional_expenses
 equity_growth_pct = ((net_equity / initial_equity) - 1) * 100 if initial_equity > 0 else 0
 roi = (net_profit / total_investment * 100) if total_investment > 0 else 0
 roe = (net_profit / initial_equity * 100) if initial_equity > 0 else 0
-yearly_roi = roe / holding_years if holding_years > 0 else 0
 
 # --- הצגת תוצאות ---
 st.markdown("---")
@@ -297,7 +296,7 @@ if total_monthly_payment > (purchase_price * 0.005) and ltv > 60:
     advisor_messages.append(f"🌊 **ניהול משברים ונזילות:** ההחזר החודשי יוצר עומס תזרימי כבד ביחס לשווי הנכס. כדי למנוע מצוקת נזילות בזמני משבר (למשל, קפיצה משמעותית בפריים או עלויות שיפוץ פתאומיות), מומלץ להכין 'באפר' (רזרבה נזילה) של 6-12 חודשי משכנתא מראש בחשבון נפרד.")
 
 if 0 < yearly_roi < 4.0:
-    advisor_messages.append(f"📊 **תשואה אלטרנטיבית:** התשואה השנתית נטו על ההון עומדת על {yearly_roi:.1f}%. בסביבת מאקרו שבה ריבית חסרת סיכון מגרדת את ה-4%, כדאי לוודא שפרמיית הסיכון של נדל\"ן (חוסר נזילות, התעסקות) שווה את התשואה, או לחשב מחדש את יעד שווי המכירה.")
+    advisor_messages.append(f"📊 **תשואה אלטרנטיבית:** התשואה השנתית נטו על ההון עומדת על {yearly_roi:.1f}%. בסביבת מאקרו שבה ריבית חסרת סיכון (כדוגמת פיקדונות או אג\"ח ממשלתי) מגרדת את ה-4%, כדאי לוודא שפרמיית הסיכון של נדל\"ן (חוסר נזילות, התעסקות) שווה את התשואה, או לחשב מחדש את יעד שווי המכירה.")
 
 if len(advisor_messages) == 1:
     advisor_messages.append("✅ **יציבות אסטרטגית:** על פניו, תמהיל המינוף, התזרים ותחזית הצמיחה מאוזנים. המספרים מציגים תוכנית עבודה יציבה, ללא נורות אזהרה בוהקות שמצריכות התערבות מיידית.")
