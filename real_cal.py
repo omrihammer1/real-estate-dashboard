@@ -99,7 +99,7 @@ total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mort
 
 # הצגת הסיכום והפירוט
 st.info(f"💡 **סה״כ הוצאות נלוות ומיסים:** ₪{total_additional_expenses:,.0f}")
-st.caption(f"**פירוט ההוצאות:** מס רכישה (₪{calculated_tax:,.0f}) + תיווך (₪{brokerage_cost:,.0f}) + עו״ד (₪{lawyer_cost:,.0f}) + יועץ (₪{mortgage_advisor:,.0f}) + נוספות (₪{other_expenses:,.0f})")
+f})")
 
 st.markdown("---")
 
