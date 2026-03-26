@@ -63,7 +63,7 @@ with col1:
 with col2:
     st.subheader("צפי והחזקה")
     holding_years = st.number_input("זמן החזקה מתוכנן (בשנים)", min_value=1, value=5, step=1)
-    appreciation_rate = st.number_input("עליית שווי שנתית (%)", value=0.0, step=0.5, format="%0.1f")
+    appreciation_rate = st.number_input("עליית שווי שנתית ממוצעת (%)", value=0.0, step=0.5, format="%0.1f")
 
 st.markdown("---")
 
