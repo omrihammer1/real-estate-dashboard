@@ -19,12 +19,13 @@ def calculate_balance(principal, annual_rate, total_months, elapsed_months):
     r = (annual_rate / 100) / 12
     return principal * (((1 + r)**total_months - (1 + r)**elapsed_months) / ((1 + r)**total_months - 1))
 
-st.set_page_config(page_title="Real Estate Holding Strategy", layout="wide")
+# הוסר layout="wide" כדי לקבל ממשק ממורכז ואסתטי
+st.set_page_config(page_title="Real Estate Holding Strategy")
 
 st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
 st.markdown("---")
 
-# אזור נתוני הנכס והחזקה
+# אזור נתוני הנכס והחזקה - עכשיו יושב במרכז
 col1, col2 = st.columns(2)
 
 with col1:
@@ -95,33 +96,41 @@ roe = (net_profit / initial_equity * 100) if initial_equity > 0 else 0
 st.markdown("---")
 st.subheader("📊 תוצאות אסטרטגיית ההחזקה (לאחר {} שנים)".format(holding_years))
 
-# שורה 1: שווי והון
-res_col1, res_col2, res_col3, res_col4 = st.columns(4)
-res_col1.metric("הון עצמי התחלתי", f"₪{initial_equity:,.0f}")
-res_col2.metric("שווי נכס עתידי", f"₪{future_value:,.0f}")
-res_col3.metric("יתרת משכנתא לסילוק", f"₪{total_outstanding_balance:,.0f}")
-res_col4.metric("הון עצמי נטו בסוף התקופה", f"₪{net_equity:,.0f}")
+# שורה 1: שווי והון (עכשיו גם זה ממורכז)
+res_col1, res_col2 = st.columns(2)
+with res_col1:
+    st.metric("הון עצמי התחלתי", f"₪{initial_equity:,.0f}")
+    st.metric("שווי נכס עתידי", f"₪{future_value:,.0f}")
+with res_col2:
+    st.metric("יתרת משכנתא לסילוק", f"₪{total_outstanding_balance:,.0f}")
+    st.metric("הון עצמי נטו בסוף התקופה", f"₪{net_equity:,.0f}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # שורה 2: ניתוח תזרימי ומשכנתא (עם ההחזר החודשי)
 st.markdown("**🔍 ניתוח משכנתא ותזרים בתקופת ההחזקה:**")
-mort_col1, mort_col2, mort_col3, mort_col4 = st.columns(4)
-mort_col1.metric("סך החזר חודשי (התחלתי)", f"₪{total_monthly_payment:,.0f}")
-mort_col2.metric("סך הכל שולם לבנק", f"₪{total_mortgage_paid:,.0f}")
-mort_col3.metric("מתוכו שולם לקרן (נשאר אצלך)", f"₪{principal_paid:,.0f}")
-mort_col4.metric("מתוכו שולם לריבית (הוצאה)", f"₪{interest_paid:,.0f}")
+mort_col1, mort_col2 = st.columns(2)
+with mort_col1:
+    st.metric("סך החזר חודשי (התחלתי)", f"₪{total_monthly_payment:,.0f}")
+    st.metric("סך הכל שולם לבנק", f"₪{total_mortgage_paid:,.0f}")
+with mort_col2:
+    st.metric("מתוכו שולם לקרן (נשאר אצלך)", f"₪{principal_paid:,.0f}")
+    st.metric("מתוכו שולם לריבית (הוצאה)", f"₪{interest_paid:,.0f}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # שורה 3: מדדים פיננסיים
-fin_col1, fin_col2, fin_col3, fin_col4 = st.columns(4)
-fin_col1.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
-fin_col2.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
-fin_col3.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}")
-fin_col4.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%")
+fin_col1, fin_col2 = st.columns(2)
+with fin_col1:
+    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
+    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
+with fin_col2:
+    st.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}")
+    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%")
 
-# הגרף
+st.markdown("---")
+
+# הגרף הריבועי הממורכז - יורש אוטומטית את רוחב העמודה המרכזית
 st.markdown("### 📈 Value, Debt, and Your Equity Over Time")
 months_list = list(range(holding_months + 1))
 values_over_time = []
@@ -139,6 +148,7 @@ for m in months_list:
     equity_at_m = val_at_m - balance_at_m
     equities_over_time.append(equity_at_m)
 
+# הגדרת הטבלה
 df_chart = pd.DataFrame({
     "Month": months_list,
     "Property Value": values_over_time,
@@ -146,4 +156,21 @@ df_chart = pd.DataFrame({
     "Net Equity (Your Share)": equities_over_time
 }).set_index("Month")
 
-st.line_chart(df_chart)
+# --- שינוי מהותי: הגרף לא יירד מתחת ל-0 ---
+# אנו משתמשים ב-st.altair_chart כדי לקבל שליטה על הצירים
+import altair as alt
+
+# הפיכת הנתונים לפורמט שמתאים ל-Altair
+df_melted = df_chart.reset_index().melt('Month', var_name='Metric', value_name='Value')
+
+chart = alt.Chart(df_melted).mark_line().encode(
+    x=alt.X('Month', title='חודש החזקה'),
+    # כאן הקסם: scale=alt.Scale(domainMin=0) מבטיח שציר Y לא יירד מתחת ל-0
+    y=alt.Y('Value', title='סכום (₪)', scale=alt.Scale(domainMin=0)),
+    color=alt.Color('Metric', legend=alt.Legend(title="מקרא"))
+).properties(
+    # גובה מותאם אישית כדי להפוך אותו לריבועי ביחס לרוחב העמודה
+    height=450 
+).interactive() # מאפשר זום וגרירה
+
+st.altair_chart(chart, use_container_width=True)
