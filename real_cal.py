@@ -120,23 +120,30 @@ fin_col2.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f
 fin_col3.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}")
 fin_col4.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%")
 
-# הגרף
-st.markdown("### 📈 Value vs. Debt Over Time")
+# הגרף המעודכן עם קו ההון העצמי המשתנה
+st.markdown("### 📈 Value, Debt, and Your Equity Over Time")
 months_list = list(range(holding_months + 1))
 values_over_time = []
 balances_over_time = []
+equities_over_time = [] # רשימה חדשה למעקב אחרי ההון
 
 for m in months_list:
-    monthly_appreciation = (1 + (appreciation_rate / 100)) ** (1/12) - 1
-    val_at_m = purchase_price * ((1 + monthly_appreciation) ** m)
+    monthly_appreciation_rate = (1 + (appreciation_rate / 100)) ** (1/12) - 1
+    val_at_m = purchase_price * ((1 + monthly_appreciation_rate) ** m)
     values_over_time.append(val_at_m)
+    
     balance_at_m = sum([calculate_balance(t['amount'], t['rate'], t['months'], m) for t in tracks_data])
     balances_over_time.append(balance_at_m)
+    
+    # חישוב ההון העצמי הקיים בנכס באותו חודש (הפער בין השווי לחוב)
+    equity_at_m = val_at_m - balance_at_m
+    equities_over_time.append(equity_at_m)
 
 df_chart = pd.DataFrame({
     "Month": months_list,
     "Property Value": values_over_time,
-    "Mortgage Balance": balances_over_time
+    "Mortgage Balance": balances_over_time,
+    "Net Equity (Your Share)": equities_over_time # הוספת הקו החדש לגרף
 }).set_index("Month")
 
 st.line_chart(df_chart)
