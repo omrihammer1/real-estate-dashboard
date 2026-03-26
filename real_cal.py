@@ -77,7 +77,7 @@ for track in tracks_data:
 
 net_equity = future_value - total_outstanding_balance
 
-# פירוק תשלום המשכנתא (קרן מול ריבית)
+# פירוק תשלום המשכנתא
 principal_paid = total_loan_amount - total_outstanding_balance
 interest_paid = total_mortgage_paid - principal_paid
 
@@ -86,7 +86,7 @@ net_profit = net_equity - initial_equity - total_mortgage_paid
 ltv = (total_loan_amount / appraisal_value * 100) if appraisal_value > 0 else 0
 total_investment = purchase_price + additional_expenses
 
-# הוספת מדד גידול בהון
+# מדד גידול בהון
 equity_growth_pct = ((net_equity / initial_equity) - 1) * 100 if initial_equity > 0 else 0
 roi = (net_profit / total_investment * 100) if total_investment > 0 else 0
 roe = (net_profit / initial_equity * 100) if initial_equity > 0 else 0
@@ -104,28 +104,29 @@ res_col4.metric("הון עצמי נטו בסוף התקופה", f"₪{net_equity
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# שורה 2: לאן הלך הכסף של המשכנתא?
-st.markdown("**🔍 ניתוח תשלומי המשכנתא בתקופת ההחזקה:**")
-mort_col1, mort_col2, mort_col3 = st.columns(3)
-mort_col1.metric("סך הכל שולם לבנק", f"₪{total_mortgage_paid:,.0f}")
-mort_col2.metric("מתוכו שולם לקרן (נשאר אצלך בהון)", f"₪{principal_paid:,.0f}")
-mort_col3.metric("מתוכו שולם לריבית (הוצאה לבנק)", f"₪{interest_paid:,.0f}")
+# שורה 2: ניתוח תזרימי ומשכנתא (עם ההחזר החודשי)
+st.markdown("**🔍 ניתוח משכנתא ותזרים בתקופת ההחזקה:**")
+mort_col1, mort_col2, mort_col3, mort_col4 = st.columns(4)
+mort_col1.metric("סך החזר חודשי (התחלתי)", f"₪{total_monthly_payment:,.0f}")
+mort_col2.metric("סך הכל שולם לבנק", f"₪{total_mortgage_paid:,.0f}")
+mort_col3.metric("מתוכו שולם לקרן (נשאר אצלך)", f"₪{principal_paid:,.0f}")
+mort_col4.metric("מתוכו שולם לריבית (הוצאה)", f"₪{interest_paid:,.0f}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # שורה 3: מדדים פיננסיים
 fin_col1, fin_col2, fin_col3, fin_col4 = st.columns(4)
-fin_col1.metric("LTV (מינוף)", f"{ltv:,.1f}%")
+fin_col1.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
 fin_col2.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
 fin_col3.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}")
 fin_col4.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%")
 
-# הגרף המעודכן עם קו ההון העצמי המשתנה
+# הגרף
 st.markdown("### 📈 Value, Debt, and Your Equity Over Time")
 months_list = list(range(holding_months + 1))
 values_over_time = []
 balances_over_time = []
-equities_over_time = [] # רשימה חדשה למעקב אחרי ההון
+equities_over_time = [] 
 
 for m in months_list:
     monthly_appreciation_rate = (1 + (appreciation_rate / 100)) ** (1/12) - 1
@@ -135,7 +136,6 @@ for m in months_list:
     balance_at_m = sum([calculate_balance(t['amount'], t['rate'], t['months'], m) for t in tracks_data])
     balances_over_time.append(balance_at_m)
     
-    # חישוב ההון העצמי הקיים בנכס באותו חודש (הפער בין השווי לחוב)
     equity_at_m = val_at_m - balance_at_m
     equities_over_time.append(equity_at_m)
 
@@ -143,7 +143,7 @@ df_chart = pd.DataFrame({
     "Month": months_list,
     "Property Value": values_over_time,
     "Mortgage Balance": balances_over_time,
-    "Net Equity (Your Share)": equities_over_time # הוספת הקו החדש לגרף
+    "Net Equity (Your Share)": equities_over_time
 }).set_index("Month")
 
 st.line_chart(df_chart)
