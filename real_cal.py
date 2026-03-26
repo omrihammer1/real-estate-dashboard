@@ -22,7 +22,7 @@ def calculate_balance(principal, annual_rate, total_months, elapsed_months):
 # הוסר layout="wide" כדי לקבל ממשק ממורכז ואסתטי
 st.set_page_config(page_title="Real Estate Holding Strategy")
 
-st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
+st.title("🏗️ דשבורד החזקת נדל\"ן")
 st.markdown("---")
 
 # אזור נתוני הנכס והחזקה - עכשיו יושב במרכז
