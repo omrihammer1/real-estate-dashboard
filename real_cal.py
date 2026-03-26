@@ -1,5 +1,8 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
+
+# --- פונקציות חישוב ---
 
 def calculate_monthly_payment(principal, annual_rate, total_months):
     if principal == 0 or total_months == 0:
@@ -19,20 +22,43 @@ def calculate_balance(principal, annual_rate, total_months, elapsed_months):
     r = (annual_rate / 100) / 12
     return principal * (((1 + r)**total_months - (1 + r)**elapsed_months) / ((1 + r)**total_months - 1))
 
-# הוסר layout="wide" כדי לקבל ממשק ממורכז ואסתטי
+def calculate_purchase_tax(price, is_single_home):
+    # מדרגות מס רכישה משוערות (מעודכן ל-2024/2025)
+    tax = 0
+    if is_single_home:
+        b1, b2, b3, b4 = 1978745, 2347040, 6055070, 20183565
+        if price <= b1:
+            tax = 0
+        elif price <= b2:
+            tax = (price - b1) * 0.035
+        elif price <= b3:
+            tax = (b2 - b1) * 0.035 + (price - b2) * 0.05
+        elif price <= b4:
+            tax = (b2 - b1) * 0.035 + (b3 - b2) * 0.05 + (price - b3) * 0.08
+        else:
+            tax = (b2 - b1) * 0.035 + (b3 - b2) * 0.05 + (b4 - b3) * 0.08 + (price - b4) * 0.10
+    else:
+        # דירה נוספת / משקיע
+        b1 = 6055070
+        if price <= b1:
+            tax = price * 0.08
+        else:
+            tax = b1 * 0.08 + (price - b1) * 0.10
+    return tax
+
+# --- הגדרת העמוד ---
 st.set_page_config(page_title="Real Estate Holding Strategy")
 
-st.title("🏗️ דשבורד החזקת נדל\"ן")
+st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
 st.markdown("---")
 
-# אזור נתוני הנכס והחזקה - עכשיו יושב במרכז
+# --- נתוני הנכס והחזקה ---
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("נתוני הנכס")
     appraisal_value = st.number_input("ערך דירה לפי שמאות (₪)", min_value=0, value=2000000, step=50000)
     purchase_price = st.number_input("מחיר דירה בפועל (₪)", min_value=0, value=2000000, step=50000)
-    additional_expenses = st.number_input("הוצאות נלוות (₪)", min_value=0, value=15000, step=5000)
     
 with col2:
     st.subheader("צפי והחזקה")
@@ -41,7 +67,35 @@ with col2:
 
 st.markdown("---")
 
-# אזור מסלולי משכנתא
+# --- הוצאות נלוות ומס רכישה ---
+st.subheader("💼 מיסים והוצאות נלוות לרכישה")
+tax_col1, tax_col2, tax_col3 = st.columns(3)
+
+with tax_col1:
+    st.markdown("**מס רכישה**")
+    buyer_status = st.radio("סטטוס רוכש:", ["דירה יחידה", "דירה חלופית / נוספת (8%-10%)"])
+    is_single_home = (buyer_status == "דירה יחידה")
+    calculated_tax = calculate_purchase_tax(purchase_price, is_single_home)
+    st.metric("מס רכישה לתשלום", f"₪{calculated_tax:,.0f}")
+
+with tax_col2:
+    st.markdown("**אנשי מקצוע (אחוזים)**")
+    brokerage_pct = st.number_input("אחוז תיווך קנייה (%)", min_value=0.0, value=0.0, step=0.1)
+    lawyer_pct = st.number_input("שכר טרחה עו״ד (%)", min_value=0.0, value=0.0, step=0.1)
+
+with tax_col3:
+    st.markdown("**הוצאות קבועות (₪)**")
+    mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0, value=0, step=500)
+    other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0, value=15000, step=1000)
+
+# סכום ההוצאות
+brokerage_cost = purchase_price * (brokerage_pct / 100)
+lawyer_cost = purchase_price * (lawyer_pct / 100)
+total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
+
+st.markdown("---")
+
+# --- מסלולי משכנתא ---
 st.subheader("🏦 מסלולי משכנתא (שפיצר)")
 num_tracks = st.slider("מספר מסלולים", min_value=1, max_value=4, value=2)
 
@@ -56,12 +110,13 @@ for i in range(num_tracks):
         rate = st.number_input(f"ריבית שנתית (%)", value=4.0, step=0.1, format="%0.2f", key=f"rate_{i}")
         tracks_data.append({"amount": amount, "months": months, "rate": rate})
 
-# --- חישובים ---
+# --- חישובי ליבה ---
 holding_months = holding_years * 12
 future_value = purchase_price * ((1 + (appreciation_rate / 100)) ** holding_years)
 
 total_loan_amount = sum(t['amount'] for t in tracks_data)
-initial_equity = purchase_price + additional_expenses - total_loan_amount
+# ההון ההתחלתי כולל כעת את המס וכל ההוצאות הנלוות
+initial_equity = purchase_price + total_additional_expenses - total_loan_amount
 
 total_monthly_payment = 0
 total_outstanding_balance = 0
@@ -85,9 +140,8 @@ interest_paid = total_mortgage_paid - principal_paid
 # מדדים פיננסיים
 net_profit = net_equity - initial_equity - total_mortgage_paid
 ltv = (total_loan_amount / appraisal_value * 100) if appraisal_value > 0 else 0
-total_investment = purchase_price + additional_expenses
+total_investment = purchase_price + total_additional_expenses
 
-# מדד גידול בהון
 equity_growth_pct = ((net_equity / initial_equity) - 1) * 100 if initial_equity > 0 else 0
 roi = (net_profit / total_investment * 100) if total_investment > 0 else 0
 roe = (net_profit / initial_equity * 100) if initial_equity > 0 else 0
@@ -96,10 +150,10 @@ roe = (net_profit / initial_equity * 100) if initial_equity > 0 else 0
 st.markdown("---")
 st.subheader("📊 תוצאות אסטרטגיית ההחזקה (לאחר {} שנים)".format(holding_years))
 
-# שורה 1: שווי והון (עכשיו גם זה ממורכז)
+# שורה 1: שווי והון
 res_col1, res_col2 = st.columns(2)
 with res_col1:
-    st.metric("הון עצמי התחלתי", f"₪{initial_equity:,.0f}")
+    st.metric("הון עצמי התחלתי (כולל הוצאות ומיסים)", f"₪{initial_equity:,.0f}")
     st.metric("שווי נכס עתידי", f"₪{future_value:,.0f}")
 with res_col2:
     st.metric("יתרת משכנתא לסילוק", f"₪{total_outstanding_balance:,.0f}")
@@ -107,7 +161,7 @@ with res_col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# שורה 2: ניתוח תזרימי ומשכנתא (עם ההחזר החודשי)
+# שורה 2: ניתוח תזרימי ומשכנתא
 st.markdown("**🔍 ניתוח משכנתא ותזרים בתקופת ההחזקה:**")
 mort_col1, mort_col2 = st.columns(2)
 with mort_col1:
@@ -130,8 +184,8 @@ with fin_col2:
 
 st.markdown("---")
 
-# הגרף הריבועי הממורכז - יורש אוטומטית את רוחב העמודה המרכזית
-st.markdown("### 📈 Value, Debt, and Your Equity Over Time")
+# --- הגרף הריבועי הממורכז ---
+st.markdown("### 📈 התפתחות השווי וההוב על פני זמן")
 months_list = list(range(holding_months + 1))
 values_over_time = []
 balances_over_time = []
@@ -148,7 +202,6 @@ for m in months_list:
     equity_at_m = val_at_m - balance_at_m
     equities_over_time.append(equity_at_m)
 
-# הגדרת הטבלה
 df_chart = pd.DataFrame({
     "Month": months_list,
     "Property Value": values_over_time,
@@ -156,21 +209,14 @@ df_chart = pd.DataFrame({
     "Net Equity (Your Share)": equities_over_time
 }).set_index("Month")
 
-# --- שינוי מהותי: הגרף לא יירד מתחת ל-0 ---
-# אנו משתמשים ב-st.altair_chart כדי לקבל שליטה על הצירים
-import altair as alt
-
-# הפיכת הנתונים לפורמט שמתאים ל-Altair
 df_melted = df_chart.reset_index().melt('Month', var_name='Metric', value_name='Value')
 
 chart = alt.Chart(df_melted).mark_line().encode(
     x=alt.X('Month', title='חודש החזקה'),
-    # כאן הקסם: scale=alt.Scale(domainMin=0) מבטיח שציר Y לא יירד מתחת ל-0
     y=alt.Y('Value', title='סכום (₪)', scale=alt.Scale(domainMin=0)),
-    color=alt.Color('Metric', legend=alt.Legend(title="מקרא"))
+    color=alt.Color('Metric', legend=alt.Legend(title="מקרא", orient='top'))
 ).properties(
-    # גובה מותאם אישית כדי להפוך אותו לריבועי ביחס לרוחב העמודה
     height=450 
-).interactive() # מאפשר זום וגרירה
+).interactive() 
 
 st.altair_chart(chart, use_container_width=True)
