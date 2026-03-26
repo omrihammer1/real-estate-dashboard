@@ -2,6 +2,43 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
+# --- הגדרת העמוד ---
+st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
+
+# --- הזרקת CSS ליישור לימין (RTL) ---
+st.markdown("""
+<style>
+    /* הגדרת כיוון כללי של האפליקציה מימין לשמאל */
+    .stApp, .block-container {
+        direction: rtl;
+        text-align: right;
+        font-family: 'Heebo', 'Alef', 'Segoe UI', sans-serif;
+    }
+    
+    /* יישור טקסט ספציפי לימין עבור כותרות ופסקאות */
+    p, h1, h2, h3, h4, h5, h6, span, label, div {
+        text-align: right !important;
+    }
+    
+    /* תיקון שדות קלט למספרים כדי שהטקסט בתוכם יהיה מימין */
+    input {
+        text-align: right !important;
+        direction: ltr !important; /* משאיר את המספרים עצמם בכיוון נכון */
+    }
+    
+    /* סידור קוביות המדדים (Metrics) כך שיהיו מיושרות לימין */
+    div[data-testid="metric-container"] {
+        text-align: right;
+    }
+    
+    /* תיקון גרפי לכפתורי בחירה (Radio / Checkbox) */
+    .stCheckbox > div, .stRadio > div {
+        direction: rtl;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # --- פונקציות חישוב ---
 
 def calculate_monthly_payment(principal, annual_rate, total_months):
@@ -43,9 +80,6 @@ def calculate_purchase_tax(price, is_single_home):
         else:
             tax = b1 * 0.08 + (price - b1) * 0.10
     return tax
-
-# --- הגדרת העמוד ---
-st.set_page_config(page_title="Real Estate Holding Strategy")
 
 st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
 st.markdown("---")
@@ -225,20 +259,18 @@ chart = alt.Chart(df_melted).mark_line().encode(
 
 st.altair_chart(chart, use_container_width=True)
 
-# --- סוכן הנדל"ן (יועץ השקעות) ---
+# --- סוכן הנדל"ן (ניתוח אסטרטגי) ---
 st.markdown("---")
 st.subheader("🤖 ניתוח אסטרטגי - יועץ השקעות מובנה")
 
 advisor_messages = []
 
-# חישוב ריבית משכנתא ממוצעת משוקללת
 if total_loan_amount > 0:
     weighted_rate_sum = sum(t['amount'] * t['rate'] for t in tracks_data)
     avg_mortgage_rate = weighted_rate_sum / total_loan_amount
 else:
     avg_mortgage_rate = 0
 
-# 1. ניתוח אסטרטגיית העסקה
 if holding_years <= 3:
     strategy_type = "עסקת אקזיט קצרת טווח (פליפ)"
 elif 3 < holding_years <= 7:
@@ -248,14 +280,12 @@ else:
 
 advisor_messages.append(f"🎯 **פרופיל אסטרטגי:** המספרים מצביעים על {strategy_type}. נגזרות ניהול הסיכונים להלן מותאמות לפרק זמן זה:")
 
-# 2. בדיקת יעילות המינוף (Negative vs Positive Leverage)
 if total_loan_amount > 0:
     if avg_mortgage_rate > appreciation_rate and ltv > 40:
         advisor_messages.append(f"⚠️ **סיכון חשיפה (Negative Leverage):** עלות הכסף שלך (ריבית ממוצעת של כ-{avg_mortgage_rate:.1f}%) גבוהה מקצב צמיחת שווי הנכס ({appreciation_rate:.1f}%). בתרחיש כזה, המינוף פועל נגדך ושוחק את ההון העצמי מדי חודש. שקול הקטנת LTV, קיצור תקופת ההלוואה לחסכון בריבית, או בחינת חלופות השקעה אחרות.")
     elif appreciation_rate > avg_mortgage_rate + 1 and ltv > 40:
         advisor_messages.append(f"🚀 **מינוף חיובי (Positive Leverage):** קצב צמיחת הנכס הצפוי עוקף את עלות החוב שלך. זוהי אינדיקציה לכך שמינפת נכון - הכסף של הבנק עובד בשבילך ומייצר תשואה עודפת (ROE) על ההון העצמי שהשקעת.")
 
-# 3. שחיקת רווחיות (הוצאות נלוות ביחס לרווח)
 if net_profit > 0:
     expenses_to_profit_ratio = total_additional_expenses / net_profit
     if expenses_to_profit_ratio > 0.4:
@@ -263,13 +293,11 @@ if net_profit > 0:
 elif net_profit <= 0 and initial_equity > 0:
     advisor_messages.append(f"🛑 **שחיקת הון מוחלטת:** תחת הנחות עליית השווי הנוכחיות, יחד עם היעדר הכנסה משכירות, העסקה רושמת הפסד תזרימי. אסטרטגיה כזו כדאית אך ורק במצב של ציפייה מוצקה לשינוי ייעוד, פינוי-בינוי ודאי, או אם מדובר בנכס למגורים שמייתר תשלום שכירות חלופי.")
 
-# 4. עומס תזרימי וניהול משברים
 if total_monthly_payment > (purchase_price * 0.005) and ltv > 60:
     advisor_messages.append(f"🌊 **ניהול משברים ונזילות:** ההחזר החודשי יוצר עומס תזרימי כבד ביחס לשווי הנכס. כדי למנוע מצוקת נזילות בזמני משבר (למשל, קפיצה משמעותית בפריים או עלויות שיפוץ פתאומיות), מומלץ להכין 'באפר' (רזרבה נזילה) של 6-12 חודשי משכנתא מראש בחשבון נפרד.")
 
-# 5. השוואה לחלופות (Cost of Opportunity)
 if 0 < yearly_roi < 4.0:
-    advisor_messages.append(f"📊 **תשואה אלטרנטיבית:** התשואה השנתית נטו על ההון עומדת על {yearly_roi:.1f}%. בסביבת מאקרו שבה ריבית חסרת סיכון (כדוגמת פיקדונות או אג\"ח ממשלתי) מגרדת את ה-4%, כדאי לוודא שפרמיית הסיכון של נדל\"ן (חוסר נזילות, התעסקות) שווה את התשואה, או לחשב מחדש את יעד שווי המכירה.")
+    advisor_messages.append(f"📊 **תשואה אלטרנטיבית:** התשואה השנתית נטו על ההון עומדת על {yearly_roi:.1f}%. בסביבת מאקרו שבה ריבית חסרת סיכון מגרדת את ה-4%, כדאי לוודא שפרמיית הסיכון של נדל\"ן (חוסר נזילות, התעסקות) שווה את התשואה, או לחשב מחדש את יעד שווי המכירה.")
 
 if len(advisor_messages) == 1:
     advisor_messages.append("✅ **יציבות אסטרטגית:** על פניו, תמהיל המינוף, התזרים ותחזית הצמיחה מאוזנים. המספרים מציגים תוכנית עבודה יציבה, ללא נורות אזהרה בוהקות שמצריכות התערבות מיידית.")
