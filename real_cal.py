@@ -23,7 +23,6 @@ def calculate_balance(principal, annual_rate, total_months, elapsed_months):
     return principal * (((1 + r)**total_months - (1 + r)**elapsed_months) / ((1 + r)**total_months - 1))
 
 def calculate_purchase_tax(price, is_single_home):
-    # מדרגות מס רכישה
     tax = 0
     if is_single_home:
         b1, b2, b3, b4 = 1978745, 2347040, 6055070, 20183565
@@ -38,7 +37,6 @@ def calculate_purchase_tax(price, is_single_home):
         else:
             tax = (b2 - b1) * 0.035 + (b3 - b2) * 0.05 + (b4 - b3) * 0.08 + (price - b4) * 0.10
     else:
-        # דירה נוספת / משקיע
         b1 = 6055070
         if price <= b1:
             tax = price * 0.08
@@ -71,7 +69,6 @@ st.markdown("---")
 st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
-# הגדרת אחוז המע"מ הכללי שישמש את תיבות הסימון
 vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=17.0, step=1.0)
 vat_multiplier = 1.0 + (vat_rate / 100.0)
 
@@ -84,7 +81,6 @@ with tax_col1:
 
 with tax_col2:
     st.markdown("**אנשי מקצוע**")
-    
     brokerage_pct = st.number_input("אחוז תיווך קנייה (%)", min_value=0.0, value=0.0, step=0.1)
     add_vat_brokerage = st.checkbox("➕ הוסף מע״מ לתיווך", value=True)
     
@@ -94,35 +90,24 @@ with tax_col2:
     
 with tax_col3:
     st.markdown("**יועצים והוצאות נוספות (₪)**")
-    
     mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0.0, value=0.0, step=500.0)
     add_vat_advisor = st.checkbox("➕ הוסף מע״מ ליועץ", value=True)
     
     st.markdown("<br>", unsafe_allow_html=True)
     other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0.0, value=15000.0, step=1000.0)
-    add_vat_other = st.checkbox("➕ הוסף מע״מ להוצאות נוספות", value=False)
+    add_vat_other = st.checkbox("➕ הוסף מע״מ להוצאות", value=False)
 
-# חישוב עלויות פרטניות כולל/ללא מע"מ לפי בחירתך
 brokerage_cost = purchase_price * (brokerage_pct / 100.0)
-if add_vat_brokerage:
-    brokerage_cost *= vat_multiplier
-
+if add_vat_brokerage: brokerage_cost *= vat_multiplier
 lawyer_cost = lawyer_fee_raw
-if add_vat_lawyer:
-    lawyer_cost *= vat_multiplier
-    
+if add_vat_lawyer: lawyer_cost *= vat_multiplier
 advisor_cost = mortgage_advisor
-if add_vat_advisor:
-    advisor_cost *= vat_multiplier
-    
+if add_vat_advisor: advisor_cost *= vat_multiplier
 other_cost = other_expenses
-if add_vat_other:
-    other_cost *= vat_multiplier
+if add_vat_other: other_cost *= vat_multiplier
 
-# חיבור פשוט של כל המרכיבים יחד למספר סופי
 total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + advisor_cost + other_cost
 
-# הצגת הסיכום
 st.info(f"💡 **סה״כ הוצאות נלוות ומיסים:** ₪{total_additional_expenses:,.0f}")
 
 st.markdown("---")
@@ -157,18 +142,13 @@ for track in tracks_data:
     pmt = calculate_monthly_payment(track['amount'], track['rate'], track['months'])
     bal = calculate_balance(track['amount'], track['rate'], track['months'], holding_months)
     months_paid = min(holding_months, track['months']) 
-    
     total_monthly_payment += pmt
     total_outstanding_balance += bal
     total_mortgage_paid += (pmt * months_paid)
 
 net_equity = future_value - total_outstanding_balance
-
-# פירוק תשלום המשכנתא
 principal_paid = total_loan_amount - total_outstanding_balance
 interest_paid = total_mortgage_paid - principal_paid
-
-# מדדים פיננסיים
 net_profit = net_equity - initial_equity - total_mortgage_paid
 ltv = (total_loan_amount / appraisal_value * 100) if appraisal_value > 0 else 0
 total_investment = purchase_price + total_additional_expenses
@@ -176,12 +156,12 @@ total_investment = purchase_price + total_additional_expenses
 equity_growth_pct = ((net_equity / initial_equity) - 1) * 100 if initial_equity > 0 else 0
 roi = (net_profit / total_investment * 100) if total_investment > 0 else 0
 roe = (net_profit / initial_equity * 100) if initial_equity > 0 else 0
+yearly_roi = roe / holding_years if holding_years > 0 else 0
 
 # --- הצגת תוצאות ---
 st.markdown("---")
 st.subheader("📊 תוצאות אסטרטגיית ההחזקה (לאחר {} שנים)".format(holding_years))
 
-# שורה 1: שווי והון
 res_col1, res_col2 = st.columns(2)
 with res_col1:
     st.metric("הון עצמי התחלתי (כולל הוצאות ומיסים)", f"₪{initial_equity:,.0f}")
@@ -192,7 +172,6 @@ with res_col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# שורה 2: ניתוח תזרימי ומשכנתא
 st.markdown("**🔍 ניתוח משכנתא ותזרים בתקופת ההחזקה:**")
 mort_col1, mort_col2 = st.columns(2)
 with mort_col1:
@@ -204,10 +183,9 @@ with mort_col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# שורה 3: מדדים פיננסיים
 fin_col1, fin_col2 = st.columns(2)
 with fin_col1:
-    st.metric("LTV (מינוף מול מחיר)", f"{ltv:,.1f}%")
+    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
     st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
 with fin_col2:
     st.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}")
@@ -215,7 +193,7 @@ with fin_col2:
 
 st.markdown("---")
 
-# --- הגרף הריבועי הממורכז ---
+# --- הגרף ---
 st.markdown("### 📈 התפתחות השווי והחוב על פני זמן")
 months_list = list(range(holding_months + 1))
 values_over_time = []
@@ -226,12 +204,9 @@ for m in months_list:
     monthly_appreciation_rate = (1 + (appreciation_rate / 100)) ** (1/12) - 1
     val_at_m = purchase_price * ((1 + monthly_appreciation_rate) ** m)
     values_over_time.append(val_at_m)
-    
     balance_at_m = sum([calculate_balance(t['amount'], t['rate'], t['months'], m) for t in tracks_data])
     balances_over_time.append(balance_at_m)
-    
-    equity_at_m = val_at_m - balance_at_m
-    equities_over_time.append(equity_at_m)
+    equities_over_time.append(val_at_m - balance_at_m)
 
 df_chart = pd.DataFrame({
     "Month": months_list,
@@ -246,8 +221,35 @@ chart = alt.Chart(df_melted).mark_line().encode(
     x=alt.X('Month', title='חודש החזקה'),
     y=alt.Y('Value', title='סכום (₪)', scale=alt.Scale(domainMin=0)),
     color=alt.Color('Metric', legend=alt.Legend(title="מקרא", orient='top'))
-).properties(
-    height=450 
-).interactive() 
+).properties(height=450).interactive() 
 
 st.altair_chart(chart, use_container_width=True)
+
+# --- סוכן הנדל"ן (יועץ השקעות) ---
+st.markdown("---")
+st.subheader("🤖 תובנות והמלצות - יועץ הנדל״ן שלך")
+
+advisor_messages = []
+
+# ניתוח מינוף
+if ltv > 75:
+    advisor_messages.append("⚠️ **רמת מינוף גבוהה (LTV > 75%):** העסקה ממונפת מאוד, מה שמייצר חשיפה משמעותית לתנודות ריבית. כדאי לבחון שילוב של מסלול בריבית קבועה כדי לעגן ודאות בהחזרים החודשיים, או לבדוק אפשרות להגדלת ההון העצמי ההתחלתי.")
+elif 0 < ltv < 45:
+    advisor_messages.append("📈 **פוטנציאל מינוף לא מנוצל:** אחוז המימון שלך נמוך מ-45%. כמשקיע, ייתכן שחלק גדול מההון העצמי שלך 'כלוא' בקירות במקום לייצר תשואה נוספת. שווה לבדוק אם הגדלת המינוף תוכל לפנות לך הון לרכישת נכס נוסף.")
+
+# ניתוח תזרים ומשכנתא
+if interest_paid > principal_paid and holding_years <= 5:
+    advisor_messages.append("🔍 **קצב סילוק קרן איטי:** בחרת בלוח סילוקין שפיצר לתקופת החזקה קצרה. מכיוון שבשנים הראשונות רוב התשלום הולך לריבית ולא לקרן, שחיקת החוב שלך מינימלית. אם מדובר בעסקת אקזיט או השבחה קצרה, שווה להתייעץ לגבי מסלולי 'בלון' או גישור.")
+    
+if total_monthly_payment > 12000:
+    advisor_messages.append("💸 **עומס תזרימי:** ההחזר החודשי המצטבר גבוה. גם אם העסקה רווחית על הנייר, חשוב לוודא שיש לך כרית ביטחון בעו\"ש לחודשים שבהם עשויות לצוץ הוצאות בלתי צפויות, כדי לא להיקלע למצוקת נזילות.")
+
+# ניתוח תשואה אלטרנטיבית
+if 0 < yearly_roi < 4.0:
+    advisor_messages.append("📊 **בחינת חלופות סולידיות:** התשואה השנתית נטו על ההון שלך נמוכה מ-4%. בסביבת הריבית הנוכחית, ריבית חסרת סיכון (כמו ריבית בנק ישראל שעומדת על 4%) או פיקדונות בנקאיים יכולים להניב תוצאה דומה ללא כאב הראש של ניהול נכס. ודא שהאסטרטגיה שלך נשענת על ציפייה מבוססת לעליית שווי עתידית.")
+
+if not advisor_messages:
+    advisor_messages.append("✅ **תכנון פיננסי מאוזן:** על פניו, רמות המינוף, התזרים והתשואה נראות יציבות ופרופורציונליות לנתונים שהזנת. זוהי נקודת פתיחה טובה. מומלץ לחזור ולבחון את המספרים אחת לשנה או בכל שינוי משמעותי בריביות השוק.")
+
+for msg in advisor_messages:
+    st.info(msg)
