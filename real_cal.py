@@ -23,7 +23,7 @@ def calculate_balance(principal, annual_rate, total_months, elapsed_months):
     return principal * (((1 + r)**total_months - (1 + r)**elapsed_months) / ((1 + r)**total_months - 1))
 
 def calculate_purchase_tax(price, is_single_home):
-    # מדרגות מס רכישה משוערות (מעודכן ל-2024/2025)
+    # מדרגות מס רכישה משוערות
     tax = 0
     if is_single_home:
         b1, b2, b3, b4 = 1978745, 2347040, 6055070, 20183565
@@ -63,7 +63,7 @@ with col1:
 with col2:
     st.subheader("צפי והחזקה")
     holding_years = st.number_input("זמן החזקה מתוכנן (בשנים)", min_value=1, value=5, step=1)
-    appreciation_rate = st.number_input("עליית שווי שנתית ממוצעת (%)", value=0.0, step=0.5, format="%0.1f")
+    appreciation_rate = st.number_input("עליית שווי שנתית (%)", value=0.0, step=0.5, format="%0.1f")
 
 st.markdown("---")
 
@@ -93,6 +93,9 @@ brokerage_cost = purchase_price * (brokerage_pct / 100)
 lawyer_cost = purchase_price * (lawyer_pct / 100)
 total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
 
+# שורת הסיכום החדשה שהוספנו
+st.info(f"💡 **סה״כ הוצאות נלוות ומיסים (מעבר למחיר הדירה):** ₪{total_additional_expenses:,.0f}")
+
 st.markdown("---")
 
 # --- מסלולי משכנתא ---
@@ -115,7 +118,6 @@ holding_months = holding_years * 12
 future_value = purchase_price * ((1 + (appreciation_rate / 100)) ** holding_years)
 
 total_loan_amount = sum(t['amount'] for t in tracks_data)
-# ההון ההתחלתי כולל כעת את המס וכל ההוצאות הנלוות
 initial_equity = purchase_price + total_additional_expenses - total_loan_amount
 
 total_monthly_payment = 0
@@ -185,7 +187,7 @@ with fin_col2:
 st.markdown("---")
 
 # --- הגרף הריבועי הממורכז ---
-st.markdown("### 📈 התפתחות השווי וההוב על פני זמן")
+st.markdown("### 📈 התפתחות השווי והחוב על פני זמן")
 months_list = list(range(holding_months + 1))
 values_over_time = []
 balances_over_time = []
