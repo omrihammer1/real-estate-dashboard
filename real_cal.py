@@ -79,21 +79,24 @@ with tax_col1:
     st.metric("מס רכישה לתשלום", f"₪{calculated_tax:,.0f}")
 
 with tax_col2:
-    st.markdown("**אנשי מקצוע (אחוזים)**")
+    st.markdown("**אנשי מקצוע (אחוזים + מע\"מ)**")
     brokerage_pct = st.number_input("אחוז תיווך קנייה (%)", min_value=0.0, value=0.0, step=0.1)
     lawyer_pct = st.number_input("שכר טרחה עו״ד (%)", min_value=0.0, value=0.0, step=0.1)
+    vat_rate = st.number_input("שיעור מע\"מ (%)", min_value=0.0, value=17.0, step=1.0)
 
 with tax_col3:
     st.markdown("**הוצאות קבועות (₪)**")
     mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0, value=0, step=500)
     other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0, value=15000, step=1000)
 
-# סכום ההוצאות
-brokerage_cost = purchase_price * (brokerage_pct / 100)
-lawyer_cost = purchase_price * (lawyer_pct / 100)
+# חישוב עלויות אנשי מקצוע כולל מע"מ (נגזר ממחיר הדירה בפועל)
+vat_multiplier = 1 + (vat_rate / 100)
+brokerage_cost = purchase_price * (brokerage_pct / 100) * vat_multiplier
+lawyer_cost = purchase_price * (lawyer_pct / 100) * vat_multiplier
+
+# סכום ההוצאות הכולל
 total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
 
-# שורת הסיכום החדשה שהוספנו
 st.info(f"💡 **סה״כ הוצאות נלוות ומיסים (מעבר למחיר הדירה):** ₪{total_additional_expenses:,.0f}")
 
 st.markdown("---")
