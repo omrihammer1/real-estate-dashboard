@@ -207,7 +207,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # שורה 3: מדדים פיננסיים
 fin_col1, fin_col2 = st.columns(2)
 with fin_col1:
-    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
+    st.metric("LTV (מינוף מול מחיר)", f"{ltv:,.1f}%")
     st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
 with fin_col2:
     st.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}")
