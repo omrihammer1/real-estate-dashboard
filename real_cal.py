@@ -23,7 +23,7 @@ def calculate_balance(principal, annual_rate, total_months, elapsed_months):
     return principal * (((1 + r)**total_months - (1 + r)**elapsed_months) / ((1 + r)**total_months - 1))
 
 def calculate_purchase_tax(price, is_single_home):
-    # מדרגות מס רכישה משוערות
+    # מדרגות מס רכישה
     tax = 0
     if is_single_home:
         b1, b2, b3, b4 = 1978745, 2347040, 6055070, 20183565
@@ -57,8 +57,8 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("נתוני הנכס")
-    appraisal_value = st.number_input("ערך דירה לפי שמאות (₪)", min_value=0, value=2000000, step=50000)
-    purchase_price = st.number_input("מחיר דירה בפועל (₪)", min_value=0, value=2000000, step=50000)
+    appraisal_value = st.number_input("ערך דירה לפי שמאות (₪)", min_value=0.0, value=2000000.0, step=50000.0)
+    purchase_price = st.number_input("מחיר דירה בפועל (₪)", min_value=0.0, value=2000000.0, step=50000.0)
     
 with col2:
     st.subheader("צפי והחזקה")
@@ -76,7 +76,7 @@ with tax_col1:
     buyer_status = st.radio("סטטוס רוכש:", ["דירה יחידה", "דירה חלופית / נוספת (8%-10%)"])
     is_single_home = (buyer_status == "דירה יחידה")
     calculated_tax = calculate_purchase_tax(purchase_price, is_single_home)
-    st.metric("מס רכישה לתשלום", f"₪{calculated_tax:,.0f}")
+    st.metric("מס רכישה מחושב", f"₪{calculated_tax:,.0f}")
 
 with tax_col2:
     st.markdown("**אנשי מקצוע (אחוזים + מע\"מ)**")
@@ -86,18 +86,20 @@ with tax_col2:
 
 with tax_col3:
     st.markdown("**הוצאות קבועות (₪)**")
-    mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0, value=0, step=500)
-    other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0, value=15000, step=1000)
+    mortgage_advisor = st.number_input("יועץ משכנתא (₪)", min_value=0.0, value=0.0, step=500.0)
+    other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0.0, value=15000.0, step=1000.0)
 
-# חישוב עלויות אנשי מקצוע כולל מע"מ (נגזר ממחיר הדירה בפועל)
-vat_multiplier = 1 + (vat_rate / 100)
-brokerage_cost = purchase_price * (brokerage_pct / 100) * vat_multiplier
-lawyer_cost = purchase_price * (lawyer_pct / 100) * vat_multiplier
+# חישוב עלויות אנשי מקצוע בחיבור פשוט וישיר
+vat_multiplier = 1.0 + (vat_rate / 100.0)
+brokerage_cost = purchase_price * (brokerage_pct / 100.0) * vat_multiplier
+lawyer_cost = purchase_price * (lawyer_pct / 100.0) * vat_multiplier
 
-# סכום ההוצאות הכולל
+# חיבור פשוט של כל המרכיבים
 total_additional_expenses = calculated_tax + brokerage_cost + lawyer_cost + mortgage_advisor + other_expenses
 
-st.info(f"💡 **סה״כ הוצאות נלוות ומיסים (מעבר למחיר הדירה):** ₪{total_additional_expenses:,.0f}")
+# הצגת הסיכום והפירוט
+st.info(f"💡 **סה״כ הוצאות נלוות ומיסים:** ₪{total_additional_expenses:,.0f}")
+st.caption(f"**פירוט ההוצאות:** מס רכישה (₪{calculated_tax:,.0f}) + תיווך (₪{brokerage_cost:,.0f}) + עו״ד (₪{lawyer_cost:,.0f}) + יועץ (₪{mortgage_advisor:,.0f}) + נוספות (₪{other_expenses:,.0f})")
 
 st.markdown("---")
 
@@ -111,7 +113,7 @@ cols = st.columns(num_tracks)
 for i in range(num_tracks):
     with cols[i]:
         st.markdown(f"**מסלול {i+1}**")
-        amount = st.number_input(f"סכום (₪)", min_value=0, value=0, step=10000, key=f"amount_{i}")
+        amount = st.number_input(f"סכום (₪)", min_value=0.0, value=0.0, step=10000.0, key=f"amount_{i}")
         months = st.number_input(f"תקופה (חודשים)", min_value=0, value=360, step=12, key=f"months_{i}")
         rate = st.number_input(f"ריבית שנתית (%)", value=4.0, step=0.1, format="%0.2f", key=f"rate_{i}")
         tracks_data.append({"amount": amount, "months": months, "rate": rate})
