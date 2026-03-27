@@ -104,7 +104,7 @@ st.markdown("---")
 st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
-vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=17.0, step=1.0, key="vat_rate_num")
+vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=18.0, step=1.0, key="vat_rate_num")
 vat_multiplier = 1.0 + (vat_rate / 100.0)
 
 with tax_col1:
