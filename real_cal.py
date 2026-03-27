@@ -162,7 +162,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # אפשרות ב': חישוב מפורט
 st.markdown("#### אפשרות ב': חישוב מפורט (לפי מסלולים)")
-num_tracks = st.selectbox("בחר כמה מסלולים להציג:", options=, index=1, key="num_tracks_sb")
+num_tracks = st.selectbox("בחר כמה מסלולים להציג:", options=[,1,2,3,4] index=1, key="num_tracks_sb")
 detailed_tracks_data = []
 cols = st.columns(num_tracks)
 
