@@ -165,7 +165,7 @@ st.markdown("#### אפשרות ב': חישוב מפורט (לפי מסלולים
 num_tracks = st.selectbox("בחר כמה מסלולים להציג:", options=, index=1, key="num_tracks_sb")
 detailed_tracks_data = []
 cols = st.columns(num_tracks)
-num_tracks = st.selectbox("בחר כמה מסלולים להציג:", index=1, key="num_tracks_sb")
+num_tracks = st.selectbox("בחר כמה מסלולים להציג:",, index=1, key="num_tracks_sb")
 for i in range(num_tracks):
     with cols[i]:
         st.markdown(f"**מסלול {i+1}**")
