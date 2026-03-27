@@ -6,14 +6,14 @@ import altair as alt
 if 'saved_strategies' not in st.session_state:
     st.session_state.saved_strategies = {}
 
-# רשימת המפתחות שצריך לשמור כדי לטעון אסטרטגיה חזרה
+# רשימת המפתחות לשמירת וטעינת הנתונים
 state_keys = [
     'appraisal_val', 'purchase_val', 'hold_years', 'appreciation',
     'buyer_status_rb', 'vat_rate_num', 'brokerage_pct_num', 'add_vat_brokerage_cb',
     'lawyer_fee_raw_num', 'add_vat_lawyer_cb', 'mortgage_advisor_num', 'add_vat_advisor_cb',
-    'other_expenses_num', 'add_vat_other_cb', 'mortgage_mode_rb',
-    'simple_mortgage_amt', 'simple_mortgage_years', 'simple_mortgage_rate',
-    'num_tracks_radio'
+    'other_expenses_num', 'add_vat_other_cb', 
+    'sim_amt_key', 'sim_years_key', 'sim_rate_key',
+    'num_tracks_sb'
 ]
 for i in range(4):
     state_keys.extend([f"amount_{i}", f"months_{i}", f"rate_{i}"])
@@ -47,7 +47,7 @@ def calculate_purchase_tax(price, is_single_home):
         else: tax = b1 * 0.08 + (price - b1) * 0.10
     return tax
 
-# --- הגדרת העמוד והעיצוב ---
+# --- הגדרת העמוד והעיצוב (RTL) ---
 st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
 
 st.markdown("""
@@ -147,32 +147,46 @@ st.info(f"💡 **סה״כ הוצאות נלוות ומיסים:** ₪{total_addi
 
 st.markdown("---")
 
-# --- תכנון משכנתא (ממשק כפול) ---
+# --- תכנון משכנתא (ממשק אחוד ומאובטח כפילויות) ---
 st.subheader("🏦 תכנון משכנתא")
-mortgage_mode = st.radio("בחר תצורת חישוב משכנתא:", ["חישוב מהיר (מסלול ממוצע)", "תכנון מפורט (עד 4 מסלולים)"], horizontal=True, key="mortgage_mode_rb")
+st.info("הזן את נתוני המשכנתא באחת מהאפשרויות בלבד (חישוב מהיר או מפורט). המערכת תזהה אוטומטית היכן הזנת סכום ותשתמש בנתונים אלו.")
 
+# אפשרות א': חישוב מהיר
+st.markdown("#### אפשרות א': חישוב מהיר (הלוואה אחידה)")
+col_s1, col_s2, col_s3 = st.columns(3)
+sim_amt = col_s1.number_input("סכום המשכנתא (₪)", min_value=0.0, value=0.0, step=50000.0, key="sim_amt_key")
+sim_years = col_s2.number_input("תקופת הלוואה (בשנים)", min_value=5, max_value=30, value=25, step=1, key="sim_years_key")
+sim_rate = col_s3.number_input("ריבית ממוצעת משוערת (%)", min_value=1.0, max_value=10.0, value=4.0, step=0.1, key="sim_rate_key")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# אפשרות ב': חישוב מפורט
+st.markdown("#### אפשרות ב': חישוב מפורט (לפי מסלולים)")
+num_tracks = st.selectbox("בחר כמה מסלולים להציג:", options=, index=1, key="num_tracks_sb")
+detailed_tracks_data = []
+cols = st.columns(num_tracks)
+
+for i in range(num_tracks):
+    with cols[i]:
+        st.markdown(f"**מסלול {i+1}**")
+        amount = st.number_input(f"סכום (₪)", min_value=0.0, value=0.0, step=10000.0, key=f"amount_{i}")
+        months = st.number_input(f"תקופה (חודשים)", min_value=0, value=360, step=12, key=f"months_{i}")
+        rate = st.number_input(f"ריבית (%)", value=4.0, step=0.1, format="%0.2f", key=f"rate_{i}")
+        detailed_tracks_data.append({"amount": amount, "months": months, "rate": rate})
+
+# לוגיקת בחירת המסלול לחישוב (הגנה מפני כפילויות)
+sum_detailed = sum(t["amount"] for t in detailed_tracks_data)
 tracks_data = []
 
-if mortgage_mode == "חישוב מהיר (מסלול ממוצע)":
-    st.markdown("סליידרים אופקיים לחישוב זריז של משכנתא אחידה:")
-    sim_amt = st.slider("סכום המשכנתא (₪)", min_value=0, max_value=int(purchase_price*1.2), value=int(purchase_price*0.6), step=50000, key="simple_mortgage_amt")
-    sim_years = st.slider("תקופת הלוואה (בשנים)", min_value=5, max_value=30, value=25, step=1, key="simple_mortgage_years")
-    sim_rate = st.slider("ריבית שנתית ממוצעת (%)", min_value=1.0, max_value=10.0, value=4.0, step=0.1, key="simple_mortgage_rate")
-    
-    sim_pmt = calculate_monthly_payment(sim_amt, sim_rate, sim_years * 12)
-    st.success(f"**החזר חודשי משוער:** ₪{sim_pmt:,.0f}")
-    tracks_data.append({"amount": sim_amt, "months": sim_years * 12, "rate": sim_rate})
-
+if sum_detailed > 0 and sim_amt > 0:
+    st.error("⚠️ **שגיאת הזנה כפולה:** הזנת סכומים גם בחישוב המהיר וגם במפורט. כדי לא לחשב משכנתא כפולה, המערכת מסתמכת כעת רק על **החישוב המפורט**. אנא אפס את הסכום באפשרות א' כדי להעלים הודעה זו.")
+    tracks_data = detailed_tracks_data
+elif sum_detailed > 0:
+    tracks_data = detailed_tracks_data
+elif sim_amt > 0:
+    tracks_data = [{"amount": sim_amt, "months": sim_years * 12, "rate": sim_rate}]
 else:
-    # ממשק 4 מסלולים אופקי - השורה שתוקנה באופן מפורש
-    num_tracks = st.radio("מספר מסלולים פעילים:", options=, horizontal=True, key="num_tracks_radio")
-    for i in range(num_tracks):
-        with cols[i]:
-            st.markdown(f"**מסלול {i+1}**")
-            amount = st.number_input(f"סכום (₪)", min_value=0.0, value=0.0, step=10000.0, key=f"amount_{i}")
-            months = st.number_input(f"תקופה (חודשים)", min_value=0, value=360, step=12, key=f"months_{i}")
-            rate = st.number_input(f"ריבית שנתית (%)", value=4.0, step=0.1, format="%0.2f", key=f"rate_{i}")
-            tracks_data.append({"amount": amount, "months": months, "rate": rate})
+    tracks_data = []
 
 # --- חישובי ליבה ---
 holding_months = holding_years * 12
@@ -251,9 +265,9 @@ with fin_col2:
     st.metric("Net Profit (רווח נטו תזרימי)", f"₪{net_profit:,.0f}", help="הרווח הטהור בכיס לאחר כל ההוצאות. מחושב כשווי המכירה פחות: הון התחלתי, סך תשלומי משכנתא (קרן+ריבית), וקיזוז מס שבח מלא.")
     st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%", help="Return on Equity: כמה הרווח הנקי מהווה באחוזים מתוך ההון ההתחלתי שהשקעת. זה המדד האמיתי שבוחן אם הכסף שלך 'עבד קשה' בזכות המינוף.")
 
-# הצגת מס השבח
+# הצגת מס השבח עם tooltip מתאים
 st.markdown("<br>", unsafe_allow_html=True)
-st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}", help="מס השבח בישראל עומד על 25% מהרווח הריאלי על הנכס (לאחר קיזוז הוצאות מוכרות ואינפלציה). המודל כאן מחשב 25% מהרווח הנומינלי לצורך פשטות הניתוח. המס פטור לחלוטין במכירת דירה יחידה מזכה.")
+st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}", help="מס השבח בישראל עומד על 25% מהרווח הריאלי על הנכס (לאחר קיזוז הוצאות מוכרות ואינפלציה). המודל כאן מחשב 25% מהרווח הנומינלי על הנכס. המס פטור לחלוטין במכירת דירה יחידה (בתנאי שעמדה בתנאי הפטור).")
 
 st.markdown("---")
 
