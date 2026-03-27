@@ -6,14 +6,13 @@ import altair as alt
 if 'saved_strategies' not in st.session_state:
     st.session_state.saved_strategies = {}
 
-# רשימת המפתחות לשמירת וטעינת הנתונים
+# רשימת המפתחות לשמירת וטעינת הנתונים (נוקה ממשתנים ישנים)
 state_keys = [
     'appraisal_val', 'purchase_val', 'hold_years', 'appreciation',
     'buyer_status_rb', 'vat_rate_num', 'brokerage_pct_num', 'add_vat_brokerage_cb',
     'lawyer_fee_raw_num', 'add_vat_lawyer_cb', 'mortgage_advisor_num', 'add_vat_advisor_cb',
     'other_expenses_num', 'add_vat_other_cb', 
-    'sim_amt_key', 'sim_years_key', 'sim_rate_key',
-    'num_tracks_sb'
+    'sim_amt_key', 'sim_years_key', 'sim_rate_key', 'mortgage_mode_rb'
 ]
 for i in range(4):
     state_keys.extend([f"amount_{i}", f"months_{i}", f"rate_{i}"])
@@ -160,21 +159,13 @@ sim_rate = col_s3.number_input("ריבית ממוצעת משוערת (%)", min_v
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# אפשרות ב': חישוב מפורט
+# אפשרות ב': חישוב מפורט (קבוע על 4 מסלולים)
 st.markdown("#### אפשרות ב': חישוב מפורט (עד 4 מסלולים)")
 st.caption("💡 הדרכה: פשוט השאר סכום 0 במסלולים שאינך צריך.")
 detailed_tracks_data = []
-cols = st.columns(4) # הצגה קבועה של 4 עמודות מבלי צורך לבחור
+cols = st.columns(4)
 
 for i in range(4):
-    with cols[i]:
-        st.markdown(f"**מסלול {i+1}**")
-        amount = st.number_input(f"סכום (₪)", min_value=0.0, value=0.0, step=10000.0, key=f"amount_{i}")
-        months = st.number_input(f"תקופה (חודשים)", min_value=0, value=360, step=12, key=f"months_{i}")
-        rate = st.number_input(f"ריבית (%)", value=4.0, step=0.1, format="%0.2f", key=f"rate_{i}")
-        detailed_tracks_data.append({"amount": amount, "months": months, "rate": rate})
-
-for i in range(num_tracks):
     with cols[i]:
         st.markdown(f"**מסלול {i+1}**")
         amount = st.number_input(f"סכום (₪)", min_value=0.0, value=0.0, step=10000.0, key=f"amount_{i}")
