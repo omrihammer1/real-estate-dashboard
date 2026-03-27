@@ -161,10 +161,18 @@ sim_rate = col_s3.number_input("ריבית ממוצעת משוערת (%)", min_v
 st.markdown("<br>", unsafe_allow_html=True)
 
 # אפשרות ב': חישוב מפורט
-st.markdown("#### אפשרות ב': חישוב מפורט (לפי מסלולים)")
-nnum_tracks = st.selectbox("בחר כמה מסלולים להציג:", options=, index=1, key="num_tracks_sb")
+st.markdown("#### אפשרות ב': חישוב מפורט (עד 4 מסלולים)")
+st.caption("💡 הדרכה: פשוט השאר סכום 0 במסלולים שאינך צריך.")
 detailed_tracks_data = []
-cols = st.columns(num_tracks)
+cols = st.columns(4) # הצגה קבועה של 4 עמודות מבלי צורך לבחור
+
+for i in range(4):
+    with cols[i]:
+        st.markdown(f"**מסלול {i+1}**")
+        amount = st.number_input(f"סכום (₪)", min_value=0.0, value=0.0, step=10000.0, key=f"amount_{i}")
+        months = st.number_input(f"תקופה (חודשים)", min_value=0, value=360, step=12, key=f"months_{i}")
+        rate = st.number_input(f"ריבית (%)", value=4.0, step=0.1, format="%0.2f", key=f"rate_{i}")
+        detailed_tracks_data.append({"amount": amount, "months": months, "rate": rate})
 
 for i in range(num_tracks):
     with cols[i]:
