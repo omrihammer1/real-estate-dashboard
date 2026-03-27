@@ -164,8 +164,8 @@ if mortgage_mode == "חישוב מהיר (מסלול ממוצע)":
     tracks_data.append({"amount": sim_amt, "months": sim_years * 12, "rate": sim_rate})
 
 else:
-    # ממשק 4 מסלולים אופקי
-    num_tracks = st.radio("מספר מסלולים פעילים:", horizontal=True, key="num_tracks_radio")
+    # ממשק 4 מסלולים אופקי - השורה שתוקנה באופן מפורש
+    num_tracks = st.radio("מספר מסלולים פעילים:", options=, horizontal=True, key="num_tracks_radio")
     cols = st.columns(num_tracks)
     for i in range(num_tracks):
         with cols[i]:
@@ -204,7 +204,7 @@ gross_profit_on_sale = future_value - cost_basis
 capital_gains_tax = 0
 
 if not is_single_home and gross_profit_on_sale > 0:
-    capital_gains_tax = gross_profit_on_sale * 0.25 # חישוב נומינלי על הרווח לפשטות המודל
+    capital_gains_tax = gross_profit_on_sale * 0.25 
 
 # רווח נקי ופיננסי (כולל ניכוי מס שבח עתידי)
 net_profit = net_equity - initial_equity - total_mortgage_paid - capital_gains_tax
