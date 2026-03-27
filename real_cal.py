@@ -105,7 +105,7 @@ st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
 # כאן השארנו עשרוני עבור דיוק במע"מ
-vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=17.0, step=1.0, format="%0.1f", key="vat_rate_num")
+vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=18.0, step=1.0, format="%0.1f", key="vat_rate_num")
 vat_multiplier = 1.0 + (vat_rate / 100.0)
 
 with tax_col1:
@@ -130,7 +130,7 @@ with tax_col3:
     add_vat_advisor = st.checkbox("➕ הוסף מע״מ ליועץ", value=True, key="add_vat_advisor_cb")
     
     st.markdown("<br>", unsafe_allow_html=True)
-    other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0, value=15000, step=1000, key="other_expenses_num")
+    other_expenses = st.number_input("הוצאות נוספות (שמאות/שיפוץ)", min_value=0, value=0, step=1000, key="other_expenses_num")
     add_vat_other = st.checkbox("➕ הוסף מע״מ להוצאות", value=False, key="add_vat_other_cb")
 
 brokerage_cost = purchase_price * (brokerage_pct / 100.0)
