@@ -165,7 +165,7 @@ if mortgage_mode == "חישוב מהיר (מסלול ממוצע)":
 
 else:
     # ממשק 4 מסלולים אופקי
-    num_tracks = st.radio("מספר מסלולים פעילים:",, horizontal=True, key="num_tracks_radio")
+    num_tracks = st.radio("מספר מסלולים פעילים:", horizontal=True, key="num_tracks_radio")
     cols = st.columns(num_tracks)
     for i in range(num_tracks):
         with cols[i]:
