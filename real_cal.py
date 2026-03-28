@@ -182,7 +182,10 @@ with col1:
         imputed_rent = 0
     else:
         monthly_rent = 0
-        imputed_rent = st.number_input("שכירות חלופית נחסכת (₪/חודש)", min_value=0, value=7500, step=100, key="imputed_rent_num")
+        imputed_rent = st.number_input(
+            "שכירות חלופית נחסכת (₪/חודש)", min_value=0, value=7500, step=100, key="imputed_rent_num",
+            help="שכירות רעיונית (Imputed Rent): הסכום שהיית משלם בכל חודש על שכירת דירה חלופית למגוריך, לו לא היית רוכש את הנכס. הכללת הסכום כ'הכנסה נחסכת' מאפשרת השוואה כלכלית אמיתית ואובייקטיבית בין מגורים להשקעה."
+        )
         
     appraisal_value = st.number_input("ערך דירה לפי שמאות (₪)", min_value=0, value=3500000, step=50000, key="appraisal_val")
     purchase_price = st.number_input("מחיר דירה בפועל (₪)", min_value=0, value=3500000, step=50000, key="purchase_val")
@@ -191,7 +194,10 @@ with col2:
     st.subheader("צפי והחזקה")
     holding_years = st.number_input("זמן החזקה מתוכנן (בשנים)", min_value=1, value=5, step=1, key="hold_years")
     appreciation_rate = st.number_input("עליית שווי נכס שנתית (%)", value=0.0, step=0.5, format="%0.1f", key="appreciation")
-    rent_increase_rate = st.number_input("עליית שכירות שנתית (%)", value=2.0, step=0.5, format="%0.1f", key="rent_increase_rate_num")
+    rent_increase_rate = st.number_input(
+        "עליית שכירות שנתית (%)", value=2.0, step=0.5, format="%0.1f", key="rent_increase_rate_num",
+        help="הגידול הטבעי בשכר הדירה. המודל יעלה את סכום השכירות (או השכירות הנחסכת) פעם בשנה לפי אחוז זה, כדי לשקף תזרים ריאלי על פני השנים."
+    )
 
 st.markdown("---")
 
@@ -246,7 +252,8 @@ st.subheader("🏦 תכנון משכנתא והצמדה למדד")
 
 cpi_assumption = st.number_input(
     "צפי עליה שנתית במדד המחירים לצרכן (%)", 
-    min_value=0.0, value=0.0, step=0.5, format="%0.1f", key="cpi_rate_key"
+    min_value=0.0, value=0.0, step=0.5, format="%0.1f", key="cpi_rate_key",
+    help="המדד משפיע על יתרת קרן המשכנתא (במסלולים צמודים). בעשור האחרון (2014-2024), ממוצע העלייה במדד המחירים לצרכן בישראל עמד על כ-1.5% עד 2.0% בשנה. הזנת ערך כאן תחזיר סימולציה שמרנית המניחה שכלל המשכנתא צמודה לחומרה."
 )
 
 st.info("הזן את נתוני המשכנתא באחת מהאפשרויות בלבד (חישוב מהיר או מפורט). המערכת תזהה אוטומטית היכן הזנת סכום ותשתמש בנתונים אלו.")
@@ -360,34 +367,34 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("**📉 מדדים פיננסיים ושורת הרווח:**")
 fin_col1, fin_col2 = st.columns(2)
 with fin_col1:
-    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
-    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
+    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%", help="Loan-to-Value: אחוז המימון (המשכנתא) שלקחת ביחס להערכת השמאי. משפיע ישירות על רמת הסיכון ומדרגות הריבית בבנק. מעל 70% נחשב מינוף גבוה.")
+    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%", help="מודד בכמה אחוזים צמח החלק 'שלך' בנכס. מחושב כיחס שבין ההון נטו שנשאר לך ביום המכירה לבין ההון ההתחלתי ששמת מהכיס.")
     
 with fin_col2:
-    st.metric("Net Profit (רווח נטו כולל תזרים)", f"₪{net_profit:,.0f}")
-    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%")
+    st.metric("Net Profit (רווח נטו כולל תזרים)", f"₪{net_profit:,.0f}", help="הרווח הטהור בכיס לאחר כל ההוצאות. מחושב כשווי המכירה + כלל ההכנסות (או החיסכון) משכירות, פחות: הון התחלתי, סך תשלומי משכנתא, וקיזוז מס שבח מלא.")
+    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%", help="Return on Equity: כמה הרווח הנקי מהווה באחוזים מתוך ההון ההתחלתי שהשקעת. זה המדד האמיתי שבוחן אם הכסף שלך 'עבד קשה' בזכות המינוף.")
 
 st.markdown("<br>", unsafe_allow_html=True)
 if strategy_type == "השקעה (השכרה)":
     st.markdown("**🏢 נתוני השכרה ותזרים (לפי נתוני פתיחה):**")
     rent_col1, rent_col2 = st.columns(2)
     with rent_col1:
-        st.metric("Gross Yield (תשואה גולמית שנתית)", f"{gross_yield:,.2f}%")
+        st.metric("Gross Yield (תשואה גולמית שנתית)", f"{gross_yield:,.2f}%", help="חישוב: (שכירות חודשית בסיסית * 12) חלקי סך ההשקעה הכולל בנכס. משקף את התשואה השנתית הבסיסית מהשכרה בלבד.")
     with rent_col2:
         flow_color = "🟢" if net_cash_flow > 0 else "🔴"
-        st.metric(f"Net Cash Flow (תזרים חודשי נטו) {flow_color}", f"₪{net_cash_flow:,.0f}")
+        st.metric(f"Net Cash Flow (תזרים חודשי נטו) {flow_color}", f"₪{net_cash_flow:,.0f}", help="חישוב: שכירות חודשית פחות ההחזר החודשי ההתחלתי של המשכנתא. מראה אם הנכס מייצר תזרים חיובי נזיל או דורש הזרמת הון לכיסוי ההלוואה.")
 else:
     st.markdown("**🏠 חיסכון בשכירות (מגורים):**")
     rent_col1, rent_col2 = st.columns(2)
     with rent_col1:
-        st.metric("סך שכירות נחסכת (מצטבר)", f"₪{total_rent_income:,.0f}")
+        st.metric("סך שכירות נחסכת (מצטבר)", f"₪{total_rent_income:,.0f}", help="סך כל הכסף שנשאר אצלך בכיס לאורך התקופה בזכות העובדה שלא שילמת שכר דירה חלופי, כולל עליות המחירים השנתיות שהגדרת.")
     with rent_col2:
         equiv_cash_flow = net_cash_flow
         flow_color = "🟢" if equiv_cash_flow > 0 else "🔴"
-        st.metric(f"פער תזרימי חודשי התחלתי {flow_color}", f"₪{equiv_cash_flow:,.0f}")
+        st.metric(f"פער תזרימי חודשי התחלתי {flow_color}", f"₪{equiv_cash_flow:,.0f}", help="ההפרש בין מה שהיית משלם על שכירות לבין תשלום המשכנתא החודשי שלך. ערך חיובי אומר שעלות המשכנתא נמוכה מעלות השכירות החלופית.")
 
 st.markdown("<br>", unsafe_allow_html=True)
-st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}")
+st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}", help="מס השבח בישראל עומד על 25% מהרווח הריאלי על הנכס (לאחר קיזוז הוצאות מוכרות ואינפלציה). המודל כאן מחשב 25% מהרווח הנומינלי לשם פשטות. המס פטור לחלוטין במכירת דירה יחידה (בתנאי שעמדה בתנאי הפטור).")
 
 st.markdown("---")
 
