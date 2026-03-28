@@ -15,7 +15,7 @@ state_keys = [
     'buyer_status_rb', 'vat_rate_num', 'brokerage_pct_num', 'add_vat_brokerage_cb',
     'lawyer_fee_raw_num', 'add_vat_lawyer_cb', 'mortgage_advisor_num', 'add_vat_advisor_cb',
     'other_expenses_num', 'add_vat_other_cb', 
-    'sim_amt_key', 'sim_years_key', 'sim_rate_key', 'cpi_rate_key', 'mortgage_mode_rb'
+    'sim_amt_key', 'sim_years_key', 'sim_rate_key', 'cpi_rate_key'
 ]
 for i in range(4):
     state_keys.extend([f"amount_{i}", f"months_{i}", f"rate_{i}"])
@@ -70,13 +70,9 @@ def calculate_purchase_tax(price, is_single_home):
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_gov_real_estate_data(city, street):
     url = "https://data.gov.il/api/3/action/datastore_search"
-    resource_id = 'cd3acc5c-03c3-4c89-9c53-d40d93c0d756' # מאגר רשות המיסים (נדל"ן)
+    resource_id = 'cd3acc5c-03c3-4c89-9c53-d40d93c0d756'
     query = f"{city} {street}".strip()
-    params = {
-        "resource_id": resource_id,
-        "q": query,
-        "limit": 1500 # משיכת עד 1500 עסקאות אחרונות כדי לייצר היסטוריה
-    }
+    params = {"resource_id": resource_id, "q": query, "limit": 1500}
     try:
         res = requests.get(url, params=params, timeout=10)
         if res.status_code == 200:
@@ -126,7 +122,8 @@ st.markdown("---")
 st.subheader("📍 חקר שוק - מגמות מחירים לפי נתוני רשות המיסים")
 st.markdown("הזן עיר ושכונה/רחוב כדי למשוך בזמן אמת עסקאות שדווחו ולראות את מגמת השווי.")
 
-[gov_col1, gov_col2, gov_col3] = st.columns()
+# חלוקה מדויקת של 3 עמודות עם סוגריים מרובעים
+gov_col1, gov_col2, gov_col3 = st.columns()
 city_input = gov_col1.text_input("עיר:", value="רעננה")
 street_input = gov_col2.text_input("רחוב / שכונה:", value="לב הפארק")
 
@@ -136,23 +133,17 @@ if gov_col3.button("🔍 מצא עסקאות"):
         
         if records:
             df = pd.DataFrame(records)
-            
-            # איתור העמודות הרלוונטיות (שמות העמודות ב-API הממשלתי עשויים להשתנות מעט)
             date_col = next((c for c in df.columns if 'תאריך' in c or 'DATE' in c.upper() or 'DEALDATETIME' in c.upper()), None)
             price_col = next((c for c in df.columns if 'שווי' in c or 'תמורה' in c or 'AMOUNT' in c.upper() or 'DEALAMOUNT' in c.upper()), None)
             
             if date_col and price_col:
-                # ניקוי וסידור הנתונים
                 df['Year'] = pd.to_datetime(df[date_col], dayfirst=True, errors='coerce').dt.year
                 df['Price'] = pd.to_numeric(df[price_col], errors='coerce')
                 df = df.dropna(subset=['Year', 'Price'])
-                
-                # סינון עסקאות חריגות מאוד או שגויות (פחות מ-200 אלף ש"ח או מעל 20 מיליון)
                 df = df[(df['Price'] > 200000) & (df['Price'] < 20000000)]
                 
                 if not df.empty:
                     yearly_avg = df.groupby('Year')['Price'].mean().reset_index()
-                    # סינון להצגת העשור האחרון בלבד
                     current_year = datetime.now().year
                     yearly_avg = yearly_avg[yearly_avg['Year'] >= (current_year - 10)]
                     yearly_avg['Year'] = yearly_avg['Year'].astype(int)
@@ -167,12 +158,11 @@ if gov_col3.button("🔍 מצא עסקאות"):
                     
                     st.altair_chart(chart, use_container_width=True)
                     
-                    # חישוב שינוי מהיר
                     if len(yearly_avg) >= 2:
                         first_year = yearly_avg.iloc
                         last_year = yearly_avg.iloc[-1]
                         growth = ((last_year['Price'] / first_year['Price']) - 1) * 100
-                        st.info(f"📈 **תובנת חקר שוק:** בין שנת {first_year['Year']} לשנת {last_year['Year']}, המחיר הממוצע לעסקה בחתך זה השתנה ב- {growth:,.1f}%. (מומלץ להשתמש בנתון זה כבסיס להזנת צפי 'עליית שווי שנתית' בדשבורד מטה).")
+                        st.info(f"📈 **תובנת חקר שוק:** בין שנת {first_year['Year']} לשנת {last_year['Year']}, המחיר הממוצע לעסקה בחתך זה השתנה ב- {growth:,.1f}%.")
                 else:
                     st.warning("לא נמצאו מספיק נתונים תקינים לניתוח באזור זה.")
             else:
@@ -194,10 +184,7 @@ with col1:
         imputed_rent = 0
     else:
         monthly_rent = 0
-        imputed_rent = st.number_input(
-            "שכירות חלופית נחסכת (₪/חודש)", min_value=0, value=7500, step=100, key="imputed_rent_num", 
-            help="שכירות רעיונית (Imputed Rent): הסכום שהיית משלם בכל חודש על שכירת דירה חלופית למגוריך, לו לא היית רוכש את הנכס. הכללת הסכום כ'הכנסה נחסכת' מאפשרת השוואה כלכלית אמיתית ואובייקטיבית בין מגורים להשקעה."
-        )
+        imputed_rent = st.number_input("שכירות חלופית נחסכת (₪/חודש)", min_value=0, value=7500, step=100, key="imputed_rent_num")
         
     appraisal_value = st.number_input("ערך דירה לפי שמאות (₪)", min_value=0, value=3500000, step=50000, key="appraisal_val")
     purchase_price = st.number_input("מחיר דירה בפועל (₪)", min_value=0, value=3500000, step=50000, key="purchase_val")
@@ -206,10 +193,7 @@ with col2:
     st.subheader("צפי והחזקה")
     holding_years = st.number_input("זמן החזקה מתוכנן (בשנים)", min_value=1, value=5, step=1, key="hold_years")
     appreciation_rate = st.number_input("עליית שווי נכס שנתית (%)", value=0.0, step=0.5, format="%0.1f", key="appreciation")
-    rent_increase_rate = st.number_input(
-        "עליית שכירות שנתית (%)", value=2.0, step=0.5, format="%0.1f", key="rent_increase_rate_num",
-        help="הגידול הטבעי בשכר הדירה. המודל יעלה את סכום השכירות (או השכירות הנחסכת) פעם בשנה לפי אחוז זה, כדי לשקף תזרים ריאלי על פני השנים."
-    )
+    rent_increase_rate = st.number_input("עליית שכירות שנתית (%)", value=2.0, step=0.5, format="%0.1f", key="rent_increase_rate_num")
 
 st.markdown("---")
 
@@ -264,8 +248,7 @@ st.subheader("🏦 תכנון משכנתא והצמדה למדד")
 
 cpi_assumption = st.number_input(
     "צפי עליה שנתית במדד המחירים לצרכן (%)", 
-    min_value=0.0, value=0.0, step=0.5, format="%0.1f", key="cpi_rate_key",
-    help="המדד משפיע על יתרת קרן המשכנתא. הסימולציה כאן מחילה את המדד על כלל המסלולים כהנחת עבודה שמרנית לחומרה."
+    min_value=0.0, value=0.0, step=0.5, format="%0.1f", key="cpi_rate_key"
 )
 
 st.info("הזן את נתוני המשכנתא באחת מהאפשרויות בלבד (חישוב מהיר או מפורט). המערכת תזהה אוטומטית היכן הזנת סכום ותשתמש בנתונים אלו.")
@@ -379,12 +362,12 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("**📉 מדדים פיננסיים ושורת הרווח:**")
 fin_col1, fin_col2 = st.columns(2)
 with fin_col1:
-    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%", help="Loan-to-Value: אחוז המימון שלקחת ביחס להערכת השמאי.")
-    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%", help="בכמה אחוזים צמח החלק 'שלך' בנכס.")
+    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%")
+    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%")
     
 with fin_col2:
-    st.metric("Net Profit (רווח נטו כולל תזרים)", f"₪{net_profit:,.0f}", help="הרווח הטהור לאחר כל ההוצאות.")
-    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%", help="Return on Equity: כמה הרווח הנקי מהווה באחוזים מתוך ההון ההתחלתי.")
+    st.metric("Net Profit (רווח נטו כולל תזרים)", f"₪{net_profit:,.0f}")
+    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%")
 
 st.markdown("<br>", unsafe_allow_html=True)
 if strategy_type == "השקעה (השכרה)":
@@ -403,7 +386,7 @@ else:
     with rent_col2:
         equiv_cash_flow = net_cash_flow
         flow_color = "🟢" if equiv_cash_flow > 0 else "🔴"
-        st.metric(f"פער תזרימי חודשי התחלתי {flow_color}", f"₪{equiv_cash_flow:,.0f}", help="ההפרש בין מה שהיית משלם על שכירות לבין תשלום המשכנתא החודשי שלך.")
+        st.metric(f"פער תזרימי חודשי התחלתי {flow_color}", f"₪{equiv_cash_flow:,.0f}")
 
 st.markdown("<br>", unsafe_allow_html=True)
 st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}")
