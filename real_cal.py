@@ -152,7 +152,7 @@ with tax_col2:
     add_vat_brokerage = st.checkbox("➕ הוסף מע״מ לתיווך", value=True, key="add_vat_brokerage_cb")
     
     st.markdown("<br>", unsafe_allow_html=True)
-    lawyer_fee_raw = st.number_input("שכר טרחה עו״ד (%)", min_value=0, value=0.5, step=1000, key="lawyer_fee_raw_num")
+    lawyer_fee_pct = st.number_input("שכר טרחה עו״ד (%)", min_value=0.0, value=0.5, step=0.1, format="%0.1f", key="lawyer_fee_pct_num")
     add_vat_lawyer = st.checkbox("➕ הוסף מע״מ לעו״ד", value=True, key="add_vat_lawyer_cb")
     
 with tax_col3:
