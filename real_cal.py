@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import requests
+from datetime import datetime
 
 # --- אתחול משתני מערכת לשמירת אסטרטגיות ---
 if 'saved_strategies' not in st.session_state:
@@ -18,7 +20,7 @@ state_keys = [
 for i in range(4):
     state_keys.extend([f"amount_{i}", f"months_{i}", f"rate_{i}"])
 
-# --- פונקציות חישוב משודרגות (כולל מדד) ---
+# --- פונקציות חישוב משודרגות ---
 def calculate_mortgage_track(principal, annual_rate, total_months, holding_months, annual_cpi):
     if principal == 0 or total_months == 0: 
         return 0, 0, principal, 0
@@ -26,7 +28,6 @@ def calculate_mortgage_track(principal, annual_rate, total_months, holding_month
     r = (annual_rate / 100) / 12
     cpi = (annual_cpi / 100) / 12
     
-    # חישוב החזר התחלתי בסיסי (שפיצר)
     if r > 0:
         pmt_initial = principal * (r * (1 + r)**total_months) / ((1 + r)**total_months - 1)
     else:
@@ -36,7 +37,6 @@ def calculate_mortgage_track(principal, annual_rate, total_months, holding_month
     total_paid = 0
     pmt_current = pmt_initial
     
-    # ריצה חודשית כדי לחשב במדויק ריבית, קרן והצמדה למדד
     months_to_run = min(holding_months, total_months)
     for m in range(months_to_run):
         interest_payment = balance * r
@@ -45,14 +45,11 @@ def calculate_mortgage_track(principal, annual_rate, total_months, holding_month
         balance -= principal_payment
         total_paid += pmt_current
         
-        # החלת אינפלציה (הצמדה למדד)
         if balance > 0:
             balance *= (1 + cpi)
             pmt_current *= (1 + cpi)
             
-    if balance < 0:
-        balance = 0
-        
+    if balance < 0: balance = 0
     return pmt_initial, pmt_current, balance, total_paid
 
 def calculate_purchase_tax(price, is_single_home):
@@ -70,6 +67,24 @@ def calculate_purchase_tax(price, is_single_home):
         else: tax = b1 * 0.08 + (price - b1) * 0.10
     return tax
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_gov_real_estate_data(city, street):
+    url = "https://data.gov.il/api/3/action/datastore_search"
+    resource_id = 'cd3acc5c-03c3-4c89-9c53-d40d93c0d756' # מאגר רשות המיסים (נדל"ן)
+    query = f"{city} {street}".strip()
+    params = {
+        "resource_id": resource_id,
+        "q": query,
+        "limit": 1500 # משיכת עד 1500 עסקאות אחרונות כדי לייצר היסטוריה
+    }
+    try:
+        res = requests.get(url, params=params, timeout=10)
+        if res.status_code == 200:
+            return res.json().get('result', {}).get('records', [])
+        return []
+    except Exception:
+        return []
+
 # --- הגדרת העמוד והעיצוב (RTL) ---
 st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
 
@@ -83,11 +98,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- תפריט צד (Sidebar) לניהול אסטרטגיות ---
+# --- תפריט צד (Sidebar) ---
 with st.sidebar:
     st.header("💾 ניהול אסטרטגיות")
-    st.markdown("כאן תוכל לשמור את הנתונים שהזנת תחת שם, ולחזור אליהם בקלות מאוחר יותר.")
-    
     new_strat_name = st.text_input("שם האסטרטגיה לשמירה:")
     if st.button("📥 שמור תרחיש נוכחי"):
         if new_strat_name:
@@ -107,6 +120,66 @@ with st.sidebar:
             st.rerun()
 
 st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
+
+# --- מודול משיכת נתונים מרשות המיסים ---
+st.markdown("---")
+st.subheader("📍 חקר שוק - מגמות מחירים לפי נתוני רשות המיסים")
+st.markdown("הזן עיר ושכונה/רחוב כדי למשוך בזמן אמת עסקאות שדווחו ולראות את מגמת השווי.")
+
+gov_col1, gov_col2, gov_col3 = st.columns()
+city_input = gov_col1.text_input("עיר:", value="רעננה")
+street_input = gov_col2.text_input("רחוב / שכונה:", value="לב הפארק")
+
+if gov_col3.button("🔍 מצא עסקאות"):
+    with st.spinner('מושך נתונים משרתי הממשלה...'):
+        records = fetch_gov_real_estate_data(city_input, street_input)
+        
+        if records:
+            df = pd.DataFrame(records)
+            
+            # איתור העמודות הרלוונטיות (שמות העמודות ב-API הממשלתי עשויים להשתנות מעט)
+            date_col = next((c for c in df.columns if 'תאריך' in c or 'DATE' in c.upper() or 'DEALDATETIME' in c.upper()), None)
+            price_col = next((c for c in df.columns if 'שווי' in c or 'תמורה' in c or 'AMOUNT' in c.upper() or 'DEALAMOUNT' in c.upper()), None)
+            
+            if date_col and price_col:
+                # ניקוי וסידור הנתונים
+                df['Year'] = pd.to_datetime(df[date_col], dayfirst=True, errors='coerce').dt.year
+                df['Price'] = pd.to_numeric(df[price_col], errors='coerce')
+                df = df.dropna(subset=['Year', 'Price'])
+                
+                # סינון עסקאות חריגות מאוד או שגויות (פחות מ-200 אלף ש"ח או מעל 20 מיליון)
+                df = df[(df['Price'] > 200000) & (df['Price'] < 20000000)]
+                
+                if not df.empty:
+                    yearly_avg = df.groupby('Year')['Price'].mean().reset_index()
+                    # סינון להצגת העשור האחרון בלבד
+                    current_year = datetime.now().year
+                    yearly_avg = yearly_avg[yearly_avg['Year'] >= (current_year - 10)]
+                    yearly_avg['Year'] = yearly_avg['Year'].astype(int)
+                    
+                    st.success(f"נמצאו {len(df)} עסקאות רלוונטיות עבור '{city_input} {street_input}'.")
+                    
+                    chart = alt.Chart(yearly_avg).mark_bar(color='#4C78A8', cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
+                        x=alt.X('Year:O', title='שנת ביצוע העסקה'),
+                        y=alt.Y('Price:Q', title='מחיר ממוצע לעסקה (₪)', scale=alt.Scale(domainMin=0)),
+                        tooltip=[alt.Tooltip('Year:O', title='שנה'), alt.Tooltip('Price:Q', title='מחיר ממוצע', format=',.0f')]
+                    ).properties(height=300).interactive()
+                    
+                    st.altair_chart(chart, use_container_width=True)
+                    
+                    # חישוב שינוי מהיר
+                    if len(yearly_avg) >= 2:
+                        first_year = yearly_avg.iloc
+                        last_year = yearly_avg.iloc[-1]
+                        growth = ((last_year['Price'] / first_year['Price']) - 1) * 100
+                        st.info(f"📈 **תובנת חקר שוק:** בין שנת {first_year['Year']} לשנת {last_year['Year']}, המחיר הממוצע לעסקה בחתך זה השתנה ב- {growth:,.1f}%. (מומלץ להשתמש בנתון זה כבסיס להזנת צפי 'עליית שווי שנתית' בדשבורד מטה).")
+                else:
+                    st.warning("לא נמצאו מספיק נתונים תקינים לניתוח באזור זה.")
+            else:
+                st.error("הייתה בעיה בפענוח הנתונים שחזרו מהמאגר הממשלתי.")
+        else:
+            st.warning("לא נמצאו עסקאות העונות לחיפוש זה במאגר הממשלתי, או שהמאגר אינו זמין כעת.")
+
 st.markdown("---")
 
 # --- נתוני הנכס והחזקה ---
@@ -192,21 +265,17 @@ st.subheader("🏦 תכנון משכנתא והצמדה למדד")
 cpi_assumption = st.number_input(
     "צפי עליה שנתית במדד המחירים לצרכן (%)", 
     min_value=0.0, value=0.0, step=0.5, format="%0.1f", key="cpi_rate_key",
-    help="המדד משפיע על יתרת קרן המשכנתא (במסלולים צמודים). בעשור האחרון (2014-2024), ממוצע העלייה במדד המחירים לצרכן בישראל עמד על כ-1.5% עד 2.0% בשנה, כאשר השנים האחרונות התאפיינו בקפיצות גבוהות יותר. הזנת ערך כאן תחזיר סימולציה שמרנית המניחה שכלל המשכנתא צמודה."
+    help="המדד משפיע על יתרת קרן המשכנתא. הסימולציה כאן מחילה את המדד על כלל המסלולים כהנחת עבודה שמרנית לחומרה."
 )
 
 st.info("הזן את נתוני המשכנתא באחת מהאפשרויות בלבד (חישוב מהיר או מפורט). המערכת תזהה אוטומטית היכן הזנת סכום ותשתמש בנתונים אלו.")
 
-# אפשרות א': חישוב מהיר
-st.markdown("#### אפשרות א': חישוב מהיר (הלוואה אחידה)")
 col_s1, col_s2, col_s3 = st.columns(3)
 sim_amt = col_s1.number_input("סכום המשכנתא (₪)", min_value=0, value=0, step=50000, key="sim_amt_key")
 sim_years = col_s2.number_input("תקופת הלוואה (בשנים)", min_value=5, max_value=30, value=25, step=1, key="sim_years_key")
 sim_rate = col_s3.number_input("ריבית ממוצעת משוערת (%)", min_value=1.0, max_value=10.0, value=4.0, step=0.1, format="%0.1f", key="sim_rate_key")
 
 st.markdown("<br>", unsafe_allow_html=True)
-
-# אפשרות ב': חישוב מפורט
 st.markdown("#### אפשרות ב': חישוב מפורט (עד 4 מסלולים)")
 st.caption("💡 הדרכה: פשוט השאר סכום 0 במסלולים שאינך צריך.")
 detailed_tracks_data = []
@@ -224,7 +293,7 @@ sum_detailed = sum(t["amount"] for t in detailed_tracks_data)
 tracks_data = []
 
 if sum_detailed > 0 and sim_amt > 0:
-    st.error("⚠️ **שגיאת הזנה כפולה:** הזנת סכומים גם בחישוב המהיר וגם במפורט. המערכת מסתמכת כעת רק על **החישוב המפורט**.")
+    st.error("⚠️ **שגיאת הזנה כפולה:** המערכת מסתמכת כעת רק על **החישוב המפורט**.")
     tracks_data = detailed_tracks_data
 elif sum_detailed > 0:
     tracks_data = detailed_tracks_data
@@ -257,7 +326,6 @@ net_equity = future_value - total_outstanding_balance
 principal_paid = total_loan_amount - total_outstanding_balance
 interest_and_cpi_paid = total_mortgage_paid - principal_paid
 
-# חישוב דינמי של השכירות המצטברת (עם עלייה שנתית)
 initial_rent_val = monthly_rent if strategy_type == "השקעה (השכרה)" else imputed_rent
 current_rent = initial_rent_val
 total_rent_income = 0
@@ -267,14 +335,12 @@ for m in range(holding_months):
         current_rent *= (1 + (rent_increase_rate / 100))
     total_rent_income += current_rent
 
-# מס שבח
 cost_basis = purchase_price + total_additional_expenses
 gross_profit_on_sale = future_value - cost_basis
 capital_gains_tax = 0
 if not is_single_home and gross_profit_on_sale > 0:
     capital_gains_tax = gross_profit_on_sale * 0.25 
 
-# רווח נקי ופיננסי (כולל שכירות נכנסת/נחסכת וקיזוז מס)
 net_profit = net_equity - initial_equity - total_mortgage_paid - capital_gains_tax + total_rent_income
 ltv = (total_loan_amount / appraisal_value * 100) if appraisal_value > 0 else 0
 
@@ -310,39 +376,37 @@ with mort_col2:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# תגיות המידע למדדים
 st.markdown("**📉 מדדים פיננסיים ושורת הרווח:**")
 fin_col1, fin_col2 = st.columns(2)
 with fin_col1:
-    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%", help="Loan-to-Value: אחוז המימון שלקחת ביחס להערכת השמאי. משפיע ישירות על רמת הסיכון ומדרגות הריבית בבנק.")
-    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%", help="בכמה אחוזים צמח החלק 'שלך' בנכס. יחס בין ההון נטו בסוף התקופה להון ההתחלתי ששמת מהכיס.")
+    st.metric("LTV (מינוף מול שמאות)", f"{ltv:,.1f}%", help="Loan-to-Value: אחוז המימון שלקחת ביחס להערכת השמאי.")
+    st.metric("Equity Growth (גידול בהון)", f"{equity_growth_pct:,.1f}%", help="בכמה אחוזים צמח החלק 'שלך' בנכס.")
     
 with fin_col2:
-    st.metric("Net Profit (רווח נטו כולל תזרים)", f"₪{net_profit:,.0f}", help="הרווח הטהור לאחר כל ההוצאות. חישוב: שווי מכירה + כלל ההכנסות (או החיסכון) משכירות, פחות: הון התחלתי, תשלומי משכנתא, ומס שבח.")
-    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%", help="Return on Equity: כמה הרווח הנקי מהווה באחוזים מתוך ההון ההתחלתי. המדד האמיתי לבחינת מינוף.")
+    st.metric("Net Profit (רווח נטו כולל תזרים)", f"₪{net_profit:,.0f}", help="הרווח הטהור לאחר כל ההוצאות.")
+    st.metric("ROE (תשואה נטו על ההון)", f"{roe:,.1f}%", help="Return on Equity: כמה הרווח הנקי מהווה באחוזים מתוך ההון ההתחלתי.")
 
-# נתוני השכרה / מגורים
 st.markdown("<br>", unsafe_allow_html=True)
 if strategy_type == "השקעה (השכרה)":
     st.markdown("**🏢 נתוני השכרה ותזרים (לפי נתוני פתיחה):**")
     rent_col1, rent_col2 = st.columns(2)
     with rent_col1:
-        st.metric("Gross Yield (תשואה גולמית שנתית)", f"{gross_yield:,.2f}%", help="חישוב: (שכירות חודשית בסיסית * 12) חלקי סך ההשקעה הכולל בנכס. משקף את התשואה הבסיסית מהשכרה בלבד.")
+        st.metric("Gross Yield (תשואה גולמית שנתית)", f"{gross_yield:,.2f}%")
     with rent_col2:
         flow_color = "🟢" if net_cash_flow > 0 else "🔴"
-        st.metric(f"Net Cash Flow (תזרים חודשי נטו) {flow_color}", f"₪{net_cash_flow:,.0f}", help="חישוב: שכירות חודשית פחות החזר משכנתא. מראה אם הנכס מייצר תזרים חיובי או דורש הזרמת הון לכיסוי ההלוואה.")
+        st.metric(f"Net Cash Flow (תזרים חודשי נטו) {flow_color}", f"₪{net_cash_flow:,.0f}")
 else:
     st.markdown("**🏠 חיסכון בשכירות (מגורים):**")
     rent_col1, rent_col2 = st.columns(2)
     with rent_col1:
-        st.metric("סך שכירות נחסכת (מצטבר)", f"₪{total_rent_income:,.0f}", help="סך כל הכסף שנשאר אצלך בכיס לאורך התקופה בזכות העובדה שלא שילמת שכר דירה חלופי, כולל עליות המחירים השנתיות שהגדרת.")
+        st.metric("סך שכירות נחסכת (מצטבר)", f"₪{total_rent_income:,.0f}")
     with rent_col2:
         equiv_cash_flow = net_cash_flow
         flow_color = "🟢" if equiv_cash_flow > 0 else "🔴"
-        st.metric(f"פער תזרימי חודשי התחלתי {flow_color}", f"₪{equiv_cash_flow:,.0f}", help="ההפרש בין מה שהיית משלם על שכירות לבין תשלום המשכנתא החודשי שלך. ערך חיובי אומר שעלות המשכנתא נמוכה מעלות השכירות החלופית.")
+        st.metric(f"פער תזרימי חודשי התחלתי {flow_color}", f"₪{equiv_cash_flow:,.0f}", help="ההפרש בין מה שהיית משלם על שכירות לבין תשלום המשכנתא החודשי שלך.")
 
 st.markdown("<br>", unsafe_allow_html=True)
-st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}", help="עומד על 25% מהרווח הריאלי. המודל מחשב 25% מהרווח הנומינלי לשם פשטות. המס פטור לחלוטין במכירת דירה יחידה מזכה.")
+st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital_gains_tax:,.0f}")
 
 st.markdown("---")
 
@@ -404,29 +468,26 @@ else:
 
 advisor_messages.append(f"🎯 **פרופיל אסטרטגי:** המספרים מצביעים על {strategy_type_txt}. נגזרות ניהול הסיכונים להלן מותאמות לפרק זמן זה:")
 
-# ניתוח תזרים
 if net_cash_flow < 0:
     if strategy_type == "השקעה (השכרה)":
-        advisor_messages.append(f"🩸 **תזרים מזומנים שלילי:** השכירות לא מכסה את המשכנתא. תצטרך להזרים מכיסך כ-₪{abs(net_cash_flow):,.0f} בכל חודש. ודא שיש לך הכנסה פנויה מספקת כדי לתמוך בנכס.")
+        advisor_messages.append(f"🩸 **תזרים מזומנים שלילי:** השכירות לא מכסה את המשכנתא. תצטרך להזרים מכיסך כ-₪{abs(net_cash_flow):,.0f} בכל חודש.")
     else:
-        advisor_messages.append(f"⚖️ **פער תזרימי למגורים:** עלות המשכנתא גבוהה ב-₪{abs(net_cash_flow):,.0f} ממה שהיית משלם על שכירות בדירה מקבילה. זהו 'מחיר הפרימיום' שאתה משלם בחודש כדי לגור בנכס בבעלותך ולא להסתמך על בעל בית.")
+        advisor_messages.append(f"⚖️ **פער תזרימי למגורים:** עלות המשכנתא גבוהה ב-₪{abs(net_cash_flow):,.0f} ממה שהיית משלם על שכירות בדירה מקבילה.")
 elif net_cash_flow > 1000:
     if strategy_type == "השקעה (השכרה)":
-        advisor_messages.append(f"💰 **תזרים מזומנים חיובי:** הנכס משלם על עצמו ומשאיר לך עודף בחודש. זה מצב אידיאלי שמאפשר בניית כרית ביטחון לבלאי או להשקעה הבאה.")
+        advisor_messages.append(f"💰 **תזרים מזומנים חיובי:** הנכס משלם על עצמו ומשאיר לך עודף בחודש.")
 
 if total_loan_amount > 0:
     if avg_mortgage_rate > appreciation_rate and ltv > 40:
-        advisor_messages.append(f"⚠️ **סיכון חשיפה (Negative Leverage):** עלות הכסף שלך (ריבית ממוצעת של כ-{avg_mortgage_rate:.1f}%) גבוהה מקצב צמיחת שווי הנכס ({appreciation_rate:.1f}%). המינוף שוחק את ההון העצמי. שקול הקטנת LTV.")
+        advisor_messages.append(f"⚠️ **סיכון חשיפה (Negative Leverage):** עלות הכסף שלך (ריבית ממוצעת של כ-{avg_mortgage_rate:.1f}%) גבוהה מקצב צמיחת שווי הנכס ({appreciation_rate:.1f}%).")
 
 if net_profit > 0:
     expenses_to_profit_ratio = total_additional_expenses / net_profit
     if expenses_to_profit_ratio > 0.4:
-        advisor_messages.append(f"💸 **משקולת הוצאות כבדה:** ההוצאות הנלוות מהוות יותר מ-{expenses_to_profit_ratio*100:.0f}% מהרווח הנקי העתידי. עמלות הכניסה והיציאה עלולות למחוק את הכדאיות. שווה לבחון הארכת תקופת ההחזקה.")
-elif net_profit <= 0 and initial_equity > 0:
-    advisor_messages.append(f"🛑 **שחיקת הון מוחלטת:** תחת ההנחות הנוכחיות העסקה רושמת הפסד (ההוצאות והחוב גוברים על עליות הערך והשכירות הנחסכת/מוכנסת).")
+        advisor_messages.append(f"💸 **משקולת הוצאות כבדה:** ההוצאות הנלוות מהוות יותר מ-{expenses_to_profit_ratio*100:.0f}% מהרווח הנקי העתידי.")
 
 if cpi_assumption > 2.5 and total_loan_amount > 0:
-    advisor_messages.append(f"🔥 **שחיקת אינפלציה:** צפי מדד גבוה ({cpi_assumption}%). שים לב איך זה מנפח את יתרת המשכנתא. שקול גידור סיכונים עם מסלולים לא-צמודים (קל\"צ).")
+    advisor_messages.append(f"🔥 **שחיקת אינפלציה:** צפי מדד גבוה ({cpi_assumption}%). שים לב איך זה מנפח את יתרת המשכנתא.")
 
 if len(advisor_messages) == 1:
     advisor_messages.append("✅ **יציבות אסטרטגית:** תמהיל המינוף, התזרים ותחזית הצמיחה מאוזנים ואינם מדליקים נורות אזהרה בוהקות.")
