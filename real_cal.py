@@ -136,7 +136,7 @@ st.markdown("---")
 st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
-vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=17.0, step=1.0, format="%0.1f", key="vat_rate_num")
+vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=18.0, step=1.0, format="%0.1f", key="vat_rate_num")
 vat_multiplier = 1.0 + (vat_rate / 100.0)
 
 with tax_col1:
@@ -152,7 +152,7 @@ with tax_col2:
     add_vat_brokerage = st.checkbox("➕ הוסף מע״מ לתיווך", value=True, key="add_vat_brokerage_cb")
     
     st.markdown("<br>", unsafe_allow_html=True)
-    lawyer_fee_raw = st.number_input("שכר טרחה עו״ד (₪)", min_value=0, value=0, step=1000, key="lawyer_fee_raw_num")
+    lawyer_fee_raw = st.number_input("שכר טרחה עו״ד (%)", min_value=0, value=0.5, step=1000, key="lawyer_fee_raw_num")
     add_vat_lawyer = st.checkbox("➕ הוסף מע״מ לעו״ד", value=True, key="add_vat_lawyer_cb")
     
 with tax_col3:
