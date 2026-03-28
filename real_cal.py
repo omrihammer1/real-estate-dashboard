@@ -11,7 +11,7 @@ state_keys = [
     'strategy_type_rb', 'monthly_rent_num', 'imputed_rent_num',
     'appraisal_val', 'purchase_val', 'hold_years', 'appreciation', 'rent_increase_rate_num',
     'buyer_status_rb', 'vat_rate_num', 'brokerage_pct_num', 'add_vat_brokerage_cb',
-    'lawyer_fee_raw_num', 'add_vat_lawyer_cb', 'mortgage_advisor_num', 'add_vat_advisor_cb',
+    'lawyer_fee_pct_num', 'add_vat_lawyer_cb', 'mortgage_advisor_num', 'add_vat_advisor_cb',
     'other_expenses_num', 'add_vat_other_cb', 
     'sim_amt_key', 'sim_years_key', 'sim_rate_key', 'cpi_rate_key'
 ]
@@ -136,7 +136,7 @@ st.markdown("---")
 st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
-vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=18.0, step=1.0, format="%0.1f", key="vat_rate_num")
+vat_rate = st.number_input("שיעור מע\"מ בסיסי לתוספת (%)", min_value=0.0, value=17.0, step=1.0, format="%0.1f", key="vat_rate_num")
 vat_multiplier = 1.0 + (vat_rate / 100.0)
 
 with tax_col1:
@@ -166,10 +166,13 @@ with tax_col3:
 
 brokerage_cost = purchase_price * (brokerage_pct / 100.0)
 if add_vat_brokerage: brokerage_cost *= vat_multiplier
-lawyer_cost = lawyer_fee_raw
+
+lawyer_cost = purchase_price * (lawyer_fee_pct / 100.0)
 if add_vat_lawyer: lawyer_cost *= vat_multiplier
+
 advisor_cost = mortgage_advisor
 if add_vat_advisor: advisor_cost *= vat_multiplier
+
 other_cost = other_expenses
 if add_vat_other: other_cost *= vat_multiplier
 
