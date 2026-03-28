@@ -71,16 +71,33 @@ def calculate_purchase_tax(price, is_single_home):
 def fetch_gov_real_estate_data(city, street):
     url = "https://data.gov.il/api/3/action/datastore_search"
     resource_id = 'cd3acc5c-03c3-4c89-9c53-d40d93c0d756'
-    query = f"{city} {street}".strip()
+    
+    # ניקוי המחרוזת לחיפוש מדויק יותר
+    query = f"{city.strip()} {street.strip()}".strip()
     params = {"resource_id": resource_id, "q": query, "limit": 1500}
+    
+    # תחפושת לדפדפן כדי לעבור את חומת האש הממשלתית
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+    
     try:
-        res = requests.get(url, params=params, timeout=10)
+        res = requests.get(url, params=params, headers=headers, timeout=15)
         if res.status_code == 200:
             return res.json().get('result', {}).get('records', [])
+        elif res.status_code == 403:
+            st.error("🔒 הגישה נחסמה (שגיאה 403). זה קורה בדרך כלל כי מאגר הממשלה חוסם את שרתי Streamlit בחו״ל.")
+            return []
+        else:
+            st.error(f"⚠️ שגיאה בשרת הממשלתי (קוד: {res.status_code}).")
+            return []
+    except requests.exceptions.Timeout:
+        st.error("⏱️ מאגר הממשלה לא מגיב (Timeout). נסה שוב מאוחר יותר.")
         return []
-    except Exception:
+    except Exception as e:
+        st.error(f"🔌 שגיאת תקשורת כללית: {str(e)}")
         return []
-
 # --- הגדרת העמוד והעיצוב (RTL) ---
 st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
 
