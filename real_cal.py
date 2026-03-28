@@ -122,12 +122,11 @@ st.markdown("---")
 st.subheader("📍 חקר שוק - מגמות מחירים לפי נתוני רשות המיסים")
 st.markdown("הזן עיר ושכונה/רחוב כדי למשוך בזמן אמת עסקאות שדווחו ולראות את מגמת השווי.")
 
-# חלוקה מדויקת של 3 עמודות עם סוגריים מרובעים
-gov_col1, gov_col2, gov_col3 = st.columns((2, 2, 1))
-city_input = gov_col1.text_input("עיר:", value="רעננה")
-street_input = gov_col2.text_input("רחוב / שכונה:", value="לב הפארק")
+# בוטלו העמודות לחלוטין כדי למנוע שגיאות - הכל מסודר אנכית
+city_input = st.text_input("עיר למחקר:", value="רעננה")
+street_input = st.text_input("רחוב / שכונה למחקר:", value="לב הפארק")
 
-if gov_col3.button("🔍 מצא עסקאות"):
+if st.button("🔍 מצא עסקאות במאגר הממשלתי"):
     with st.spinner('מושך נתונים משרתי הממשלה...'):
         records = fetch_gov_real_estate_data(city_input, street_input)
         
