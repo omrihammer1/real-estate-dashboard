@@ -126,7 +126,7 @@ st.markdown("---")
 st.subheader("📍 חקר שוק - מגמות מחירים לפי נתוני רשות המיסים")
 st.markdown("הזן עיר ושכונה/רחוב כדי למשוך בזמן אמת עסקאות שדווחו ולראות את מגמת השווי.")
 
-gov_col1, gov_col2, gov_col3 = st.columns()
+[gov_col1, gov_col2, gov_col3] = st.columns()
 city_input = gov_col1.text_input("עיר:", value="רעננה")
 street_input = gov_col2.text_input("רחוב / שכונה:", value="לב הפארק")
 
