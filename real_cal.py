@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-import requests
-from datetime import datetime
 
 # --- אתחול משתני מערכת לשמירת אסטרטגיות ---
 if 'saved_strategies' not in st.session_state:
@@ -20,7 +18,7 @@ state_keys = [
 for i in range(4):
     state_keys.extend([f"amount_{i}", f"months_{i}", f"rate_{i}"])
 
-# --- פונקציות חישוב משודרגות ---
+# --- פונקציות חישוב ---
 def calculate_mortgage_track(principal, annual_rate, total_months, holding_months, annual_cpi):
     if principal == 0 or total_months == 0: 
         return 0, 0, principal, 0
@@ -67,37 +65,6 @@ def calculate_purchase_tax(price, is_single_home):
         else: tax = b1 * 0.08 + (price - b1) * 0.10
     return tax
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def fetch_gov_real_estate_data(city, street):
-    url = "https://data.gov.il/api/3/action/datastore_search"
-    resource_id = 'cd3acc5c-03c3-4c89-9c53-d40d93c0d756'
-    
-    # ניקוי המחרוזת לחיפוש מדויק יותר
-    query = f"{city.strip()} {street.strip()}".strip()
-    params = {"resource_id": resource_id, "q": query, "limit": 1500}
-    
-    # תחפושת לדפדפן כדי לעבור את חומת האש הממשלתית
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "application/json"
-    }
-    
-    try:
-        res = requests.get(url, params=params, headers=headers, timeout=15)
-        if res.status_code == 200:
-            return res.json().get('result', {}).get('records', [])
-        elif res.status_code == 403:
-            st.error("🔒 הגישה נחסמה (שגיאה 403). זה קורה בדרך כלל כי מאגר הממשלה חוסם את שרתי Streamlit בחו״ל.")
-            return []
-        else:
-            st.error(f"⚠️ שגיאה בשרת הממשלתי (קוד: {res.status_code}).")
-            return []
-    except requests.exceptions.Timeout:
-        st.error("⏱️ מאגר הממשלה לא מגיב (Timeout). נסה שוב מאוחר יותר.")
-        return []
-    except Exception as e:
-        st.error(f"🔌 שגיאת תקשורת כללית: {str(e)}")
-        return []
 # --- הגדרת העמוד והעיצוב (RTL) ---
 st.set_page_config(page_title="Real Estate Holding Strategy", layout="centered")
 
@@ -134,60 +101,8 @@ with st.sidebar:
 
 st.title("🏗️ דשבורד אסטרטגיות החזקת נדל\"ן")
 
-# --- מודול משיכת נתונים מרשות המיסים ---
-st.markdown("---")
-st.subheader("📍 חקר שוק - מגמות מחירים לפי נתוני רשות המיסים")
-st.markdown("הזן עיר ושכונה/רחוב כדי למשוך בזמן אמת עסקאות שדווחו ולראות את מגמת השווי.")
-
-city_input = st.text_input("עיר למחקר:", value="רעננה")
-street_input = st.text_input("רחוב / שכונה למחקר:", value="לב הפארק")
-
-if st.button("🔍 מצא עסקאות במאגר הממשלתי"):
-    with st.spinner('מושך נתונים משרתי הממשלה...'):
-        records = fetch_gov_real_estate_data(city_input, street_input)
-        
-        if records:
-            df = pd.DataFrame(records)
-            date_col = next((c for c in df.columns if 'תאריך' in c or 'DATE' in c.upper() or 'DEALDATETIME' in c.upper()), None)
-            price_col = next((c for c in df.columns if 'שווי' in c or 'תמורה' in c or 'AMOUNT' in c.upper() or 'DEALAMOUNT' in c.upper()), None)
-            
-            if date_col and price_col:
-                df['Year'] = pd.to_datetime(df[date_col], dayfirst=True, errors='coerce').dt.year
-                df['Price'] = pd.to_numeric(df[price_col], errors='coerce')
-                df = df.dropna(subset=['Year', 'Price'])
-                df = df[(df['Price'] > 200000) & (df['Price'] < 20000000)]
-                
-                if not df.empty:
-                    yearly_avg = df.groupby('Year')['Price'].mean().reset_index()
-                    current_year = datetime.now().year
-                    yearly_avg = yearly_avg[yearly_avg['Year'] >= (current_year - 10)]
-                    yearly_avg['Year'] = yearly_avg['Year'].astype(int)
-                    
-                    st.success(f"נמצאו {len(df)} עסקאות רלוונטיות עבור '{city_input} {street_input}'.")
-                    
-                    chart = alt.Chart(yearly_avg).mark_bar(color='#4C78A8', cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
-                        x=alt.X('Year:O', title='שנת ביצוע העסקה'),
-                        y=alt.Y('Price:Q', title='מחיר ממוצע לעסקה (₪)', scale=alt.Scale(domainMin=0)),
-                        tooltip=[alt.Tooltip('Year:O', title='שנה'), alt.Tooltip('Price:Q', title='מחיר ממוצע', format=',.0f')]
-                    ).properties(height=300).interactive()
-                    
-                    st.altair_chart(chart, use_container_width=True)
-                    
-                    if len(yearly_avg) >= 2:
-                        first_year = yearly_avg.iloc
-                        last_year = yearly_avg.iloc[-1]
-                        growth = ((last_year['Price'] / first_year['Price']) - 1) * 100
-                        st.info(f"📈 **תובנת חקר שוק:** בין שנת {first_year['Year']} לשנת {last_year['Year']}, המחיר הממוצע לעסקה בחתך זה השתנה ב- {growth:,.1f}%.")
-                else:
-                    st.warning("לא נמצאו מספיק נתונים תקינים לניתוח באזור זה.")
-            else:
-                st.error("הייתה בעיה בפענוח הנתונים שחזרו מהמאגר הממשלתי.")
-        else:
-            st.warning("לא נמצאו עסקאות העונות לחיפוש זה במאגר הממשלתי, או שהמאגר אינו זמין כעת.")
-
-st.markdown("---")
-
 # --- נתוני הנכס והחזקה ---
+st.markdown("---")
 col1, col2 = st.columns(2)
 
 with col1:
@@ -210,15 +125,14 @@ with col1:
 with col2:
     st.subheader("צפי והחזקה")
     holding_years = st.number_input("זמן החזקה מתוכנן (בשנים)", min_value=1, value=5, step=1, key="hold_years")
-    appreciation_rate = st.number_input("עליית שווי נכס שנתית (%)", value=0.0, step=0.5, format="%0.1f", key="appreciation")
+    appreciation_rate = st.number_input("עליית שווי נכס שנתית (%)", value=2.0, step=0.5, format="%0.1f", key="appreciation")
     rent_increase_rate = st.number_input(
         "עליית שכירות שנתית (%)", value=2.0, step=0.5, format="%0.1f", key="rent_increase_rate_num",
         help="הגידול הטבעי בשכר הדירה. המודל יעלה את סכום השכירות (או השכירות הנחסכת) פעם בשנה לפי אחוז זה, כדי לשקף תזרים ריאלי על פני השנים."
     )
 
-st.markdown("---")
-
 # --- הוצאות נלוות ומס רכישה ---
+st.markdown("---")
 st.subheader("💼 מיסים והוצאות נלוות לרכישה")
 tax_col1, tax_col2, tax_col3 = st.columns(3)
 
@@ -416,7 +330,7 @@ st.metric("מס שבח משוער לתשלום בעת מכירה", f"₪{capital
 st.markdown("---")
 
 # --- הגרף ---
-st.markdown("### 📈 התפתחות השווי והחוב על פני זמן")
+st.markdown("### 📈 התפתחות השווי והחוב על פני זמן (תחזית עתידית)")
 months_list = list(range(holding_months + 1))
 values_over_time = []
 balances_over_time = []
@@ -445,7 +359,7 @@ df_chart = pd.DataFrame({
 df_melted = df_chart.reset_index().melt('Month', var_name='Metric', value_name='Value')
 
 chart = alt.Chart(df_melted).mark_line().encode(
-    x=alt.X('Month', title='חודש החזקה'),
+    x=alt.X('Month', title='חודש החזקה עתידי'),
     y=alt.Y('Value', title='סכום (₪)', scale=alt.Scale(domainMin=0)),
     color=alt.Color('Metric', legend=alt.Legend(title="מקרא", orient='top'))
 ).properties(height=450).interactive() 
